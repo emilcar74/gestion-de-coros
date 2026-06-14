@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: ars-mvsica-privado
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: ars-mvsica-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: DEV_AUTH
+        value: "false"
+      - key: APP_NAME
+        value: Choir Private Area
+      - key: GHOST_API_URL
+        value: https://your-ghost-site.example
+      - key: GHOST_ACCESS_LABEL
+        value: cantante
+      - key: MAILGUN_DOMAIN
+        value: mg.example.com
+      - key: MAILGUN_BASE_URL
+        value: https://api.eu.mailgun.net
+      - key: MAIL_FROM
+        value: Choir Private Area <access@example.com>
+      - key: ADMIN_EMAILS
+        value: director@example.com
+      - key: APP_SECRET
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: GHOST_ADMIN_API_KEY
+        sync: false
+      - key: MAILGUN_API_KEY
+        sync: false

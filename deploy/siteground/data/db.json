@@ -1,0 +1,168 @@
+{
+  "programs": [
+    {
+      "id": "programa-actual",
+      "name": "Sample Program",
+      "description": "Example rehearsal and concert cycle.",
+      "works": "",
+      "scoreFolderUrl": "https://example.com/scores",
+      "playlists": {
+        "appleMusic": "",
+        "spotify": "",
+        "youtube": ""
+      },
+      "active": true,
+      "createdAt": "2026-06-14T00:00:00.000Z",
+      "updatedAt": "2026-06-14T17:07:55.844Z"
+    }
+  ],
+  "events": [
+    {
+      "id": "ensayo-2026-10-02",
+      "programId": "programa-actual",
+      "title": "Ensayo",
+      "type": "ensayo",
+      "date": "2026-10-02",
+      "time": "17:30",
+      "location": "Rehearsal room",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "ensayo-2026-10-09",
+      "programId": "programa-actual",
+      "title": "Ensayo",
+      "type": "ensayo",
+      "date": "2026-10-09",
+      "time": "17:30",
+      "location": "Rehearsal room",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "ensayo-2026-11-06",
+      "programId": "programa-actual",
+      "title": "Ensayo",
+      "type": "ensayo",
+      "date": "2026-11-06",
+      "time": "17:30",
+      "location": "Rehearsal room",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "ensayo-2026-11-13",
+      "programId": "programa-actual",
+      "title": "Ensayo",
+      "type": "ensayo",
+      "date": "2026-11-13",
+      "time": "17:30",
+      "location": "Rehearsal room",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "ensayo-2026-11-20",
+      "programId": "programa-actual",
+      "title": "Ensayo",
+      "type": "ensayo",
+      "date": "2026-11-20",
+      "time": "17:30",
+      "location": "Rehearsal room",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "ensayo-2026-11-27",
+      "programId": "programa-actual",
+      "title": "Ensayo",
+      "type": "ensayo",
+      "date": "2026-11-27",
+      "time": "17:30",
+      "location": "Rehearsal room",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "ensayo-2026-12-11",
+      "programId": "programa-actual",
+      "title": "Ensayo",
+      "type": "ensayo",
+      "date": "2026-12-11",
+      "time": "17:30",
+      "location": "Rehearsal room",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "ensayo-2026-12-18",
+      "programId": "programa-actual",
+      "title": "Ensayo",
+      "type": "ensayo",
+      "date": "2026-12-18",
+      "time": "17:30",
+      "location": "Rehearsal room",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "concierto-2026-12-19",
+      "programId": "programa-actual",
+      "title": "Concierto",
+      "type": "concierto",
+      "date": "2026-12-19",
+      "time": "Por confirmar",
+      "location": "Por confirmar",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "encuentro-2026-12-20",
+      "programId": "programa-actual",
+      "title": "Encuentro",
+      "type": "otro",
+      "date": "2026-12-20",
+      "time": "Por confirmar",
+      "location": "Por confirmar",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "concierto-2026-12-23",
+      "programId": "programa-actual",
+      "title": "Concierto",
+      "type": "concierto",
+      "date": "2026-12-23",
+      "time": "Por confirmar",
+      "location": "Por confirmar",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "concierto-2027-01-03",
+      "programId": "programa-actual",
+      "title": "Concierto",
+      "type": "concierto",
+      "date": "2027-01-03",
+      "time": "Por confirmar",
+      "location": "Por confirmar",
+      "notes": "",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    }
+  ],
+  "resources": [
+    {
+      "id": "recurso-1",
+      "programId": "programa-actual",
+      "title": "Carpeta de partituras",
+      "type": "partituras",
+      "url": "https://example.com/scores",
+      "notes": "Example score folder.",
+      "createdAt": "2026-06-14T00:00:00.000Z"
+    }
+  ],
+  "profiles": [],
+  "attendance": [],
+  "magicLinks": [],
+  "sessions": []
+}
