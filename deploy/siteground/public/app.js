@@ -466,32 +466,40 @@ function bindView() {
 
   document.querySelector("#profileForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await api("/api/me/profile", { method: "PUT", body: formBody(event.currentTarget) });
-    await refresh();
-    state.screen = "profile";
-    renderApp();
+    await runAction(async () => {
+      await api("/api/me/profile", { method: "PUT", body: formBody(event.currentTarget) });
+      await refresh();
+      state.screen = "profile";
+      renderApp();
+    });
   });
 
   document.querySelector("#eventForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await api("/api/admin/events", { method: "POST", body: formBody(event.currentTarget) });
-    event.currentTarget.reset();
-    await refreshAdmin();
+    await runAction(async () => {
+      await api("/api/admin/events", { method: "POST", body: formBody(event.currentTarget) });
+      event.currentTarget.reset();
+      await refreshAdmin();
+    });
   });
 
   document.querySelector("#resourceForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await api("/api/admin/resources", { method: "POST", body: formBody(event.currentTarget) });
-    event.currentTarget.reset();
-    await refreshAdmin();
+    await runAction(async () => {
+      await api("/api/admin/resources", { method: "POST", body: formBody(event.currentTarget) });
+      event.currentTarget.reset();
+      await refreshAdmin();
+    });
   });
 
   document.querySelector("#programForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await api("/api/admin/program", { method: "PUT", body: formBody(event.currentTarget) });
-    await refreshAdmin();
-    state.screen = "resources";
-    renderApp();
+    await runAction(async () => {
+      await api("/api/admin/program", { method: "PUT", body: formBody(event.currentTarget) });
+      await refreshAdmin();
+      state.screen = "resources";
+      renderApp();
+    });
   });
 
   document.querySelector("#resetProgramForm")?.addEventListener("submit", async (event) => {
@@ -500,31 +508,37 @@ function bindView() {
       "Esto borrará eventos, asistencias y repertorio del programa actual. ¿Quieres continuar?"
     );
     if (!confirmed) return;
-    await api("/api/admin/program/reset", { method: "POST", body: formBody(event.currentTarget) });
-    state.visibleMonth = "";
-    state.selectedDate = "";
-    await refreshAdmin();
+    await runAction(async () => {
+      await api("/api/admin/program/reset", { method: "POST", body: formBody(event.currentTarget) });
+      state.visibleMonth = "";
+      state.selectedDate = "";
+      await refreshAdmin();
+    });
   });
 
   document.querySelectorAll("[data-event-edit]").forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      await api(`/api/admin/events/${form.dataset.eventEdit}`, {
-        method: "PUT",
-        body: formBody(form)
+      await runAction(async () => {
+        await api(`/api/admin/events/${form.dataset.eventEdit}`, {
+          method: "PUT",
+          body: formBody(form)
+        });
+        await refreshAdmin();
       });
-      await refreshAdmin();
     });
   });
 }
 
 async function saveAttendance(block, status) {
-  await api(`/api/attendance/${block.dataset.event}`, {
-    method: "PUT",
-    body: { status, note: block.querySelector("input").value }
+  await runAction(async () => {
+    await api(`/api/attendance/${block.dataset.event}`, {
+      method: "PUT",
+      body: { status, note: block.querySelector("input").value }
+    });
+    await refresh();
+    renderApp();
   });
-  await refresh();
-  renderApp();
 }
 
 async function refresh() {
@@ -554,6 +568,26 @@ async function api(url, options = {}) {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || "Error");
   return payload;
+}
+
+async function runAction(action) {
+  try {
+    await action();
+  } catch (error) {
+    showToast(error.message || "No se pudo guardar. Revisa la conexión.");
+  }
+}
+
+function showToast(message) {
+  let toast = document.querySelector(".toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.className = "toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add("visible");
+  window.setTimeout(() => toast.classList.remove("visible"), 4200);
 }
 
 function formBody(form) {

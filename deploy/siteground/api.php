@@ -393,7 +393,11 @@ function normalize_email($value) {
 }
 
 function clean($value, $max) {
-    return mb_substr(trim((string) $value), 0, $max);
+    $value = trim((string) $value);
+    if (function_exists('mb_substr')) {
+        return mb_substr($value, 0, $max);
+    }
+    return substr($value, 0, $max);
 }
 
 function hash_token($token, $config) {
