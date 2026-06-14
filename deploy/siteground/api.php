@@ -71,7 +71,7 @@ function route($method, $path, $config, $dbPath) {
             $db['sessions'] = array_values(array_filter($db['sessions'], fn($s) => $s['tokenHash'] !== $session['tokenHash']));
             write_db($dbPath, $db);
         }
-        setcookie('ars_session', '', ['expires' => time() - 3600, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax', 'secure' => true]);
+        clear_session_cookie($config);
         json(200, ['ok' => true]);
     }
 
@@ -295,7 +295,7 @@ function http_json($url, $headers) {
 }
 
 function session_user($dbPath, $config) {
-    $token = $_COOKIE['ars_session'] ?? '';
+    $token = session_cookie_value();
     if (!$token) return null;
     $db = read_db($dbPath);
     $hash = hash_token($token, $config);
@@ -372,7 +372,39 @@ function default_score_folder() {
 }
 
 function set_session_cookie($value, $config) {
-    setcookie('ars_session', $value, ['expires' => time() + 30 * 24 * 60 * 60, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax', 'secure' => str_starts_with($config['app_base_url'], 'https://')]);
+    $parts = [
+        'ars_session=' . rawurlencode($value),
+        'Expires=' . gmdate('D, d M Y H:i:s T', time() + 30 * 24 * 60 * 60),
+        'Max-Age=' . (30 * 24 * 60 * 60),
+        'Path=/',
+        'HttpOnly',
+        'SameSite=Lax',
+    ];
+    if (str_starts_with($config['app_base_url'], 'https://')) $parts[] = 'Secure';
+    header('Set-Cookie: ' . implode('; ', $parts), false);
+}
+
+function clear_session_cookie($config) {
+    $parts = [
+        'ars_session=',
+        'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+        'Max-Age=0',
+        'Path=/',
+        'HttpOnly',
+        'SameSite=Lax',
+    ];
+    if (str_starts_with($config['app_base_url'], 'https://')) $parts[] = 'Secure';
+    header('Set-Cookie: ' . implode('; ', $parts), false);
+}
+
+function session_cookie_value() {
+    if (!empty($_COOKIE['ars_session'])) return $_COOKIE['ars_session'];
+    $header = $_SERVER['HTTP_COOKIE'] ?? '';
+    foreach (explode(';', $header) as $part) {
+        $pieces = explode('=', trim($part), 2);
+        if (count($pieces) === 2 && $pieces[0] === 'ars_session') return rawurldecode($pieces[1]);
+    }
+    return '';
 }
 
 function json($status, $payload) {

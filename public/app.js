@@ -562,6 +562,7 @@ async function logout() {
 async function api(url, options = {}) {
   const response = await fetch(url, {
     method: options.method || "GET",
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: options.body ? JSON.stringify(options.body) : undefined
   });
