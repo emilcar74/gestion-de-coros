@@ -118,7 +118,7 @@ function route($method, $path, $config, $dbPath) {
 
     if ($method === 'GET' && $path === '/admin') json(200, admin_data(read_db($dbPath), $config));
 
-    if ($method === 'PUT' && $path === '/admin/program') {
+    if (($method === 'PUT' || $method === 'POST') && $path === '/admin/program') {
         $body = body();
         $db = read_db($dbPath);
         $idx = active_program_index($db);

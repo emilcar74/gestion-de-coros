@@ -495,7 +495,7 @@ function bindView() {
   document.querySelector("#programForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     await runAction(async () => {
-      await api("/api/admin/program", { method: "PUT", body: formBody(event.currentTarget) });
+      await api("/api/admin/program", { method: "POST", body: formBody(event.currentTarget) });
       await refreshAdmin();
       state.screen = "resources";
       renderApp();

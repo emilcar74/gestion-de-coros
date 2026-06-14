@@ -235,7 +235,7 @@ async function routeApi(req, res, url) {
     return;
   }
 
-  if (req.method === "PUT" && url.pathname === "/api/admin/program") {
+  if ((req.method === "PUT" || req.method === "POST") && url.pathname === "/api/admin/program") {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const body = await readJson(req);
     const db = await readDb();
