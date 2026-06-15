@@ -1,6 +1,8 @@
-# Choir Private Area
+# Gestion de coros
 
 A small private web app for choirs: repertoire, calendar, absence/late notices, and an admin view for the director.
+
+Una web privada para gestionar ensayos y otros conceptos relativos a un programa de un coro.
 
 It was born for Ars Mvsica, but the goal is to make it useful for any choir director who needs a lightweight private area without running a full membership platform.
 
@@ -157,8 +159,8 @@ Frontend branding lives near the top of `public/app.js`:
 
 ```js
 const appConfig = {
-  choirName: "Choir Private Area",
-  loginSubtitle: "Private area for choir members. Enter with your registered email."
+  choirName: "Ars Mvsica",
+  loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado."
 };
 ```
 
