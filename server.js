@@ -10,6 +10,8 @@ const dataDir = process.env.DATA_DIR || path.join(__dirname, "data");
 const dbPath = path.join(dataDir, "db.json");
 const seedDbPath = path.join(__dirname, "data", "db.json");
 const publicDir = path.join(__dirname, "public");
+const sessionCookieName = "ars_session_v2";
+const legacySessionCookieNames = ["ars_session"];
 
 loadEnv(path.join(__dirname, ".env"));
 
@@ -145,7 +147,8 @@ async function routeApi(req, res, url) {
     });
     await writeDb(db);
 
-    setCookie(res, "ars_session", sessionToken);
+    setCookie(res, sessionCookieName, sessionToken);
+    clearLegacySessionCookies(res);
     redirect(res, "/app");
     return;
   }
@@ -157,7 +160,7 @@ async function routeApi(req, res, url) {
       db.sessions = db.sessions.filter((item) => item.tokenHash !== session.tokenHash);
       await writeDb(db);
     }
-    clearCookie(res, "ars_session");
+    clearAllSessionCookies(res);
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -540,7 +543,7 @@ function upsertProfile(db, email, name = "") {
 }
 
 async function getSession(req) {
-  const token = parseCookies(req.headers.cookie || "").ars_session;
+  const token = parseCookies(req.headers.cookie || "")[sessionCookieName];
   if (!token) return null;
   const db = await readDb();
   const tokenHash = hash(token);
@@ -654,12 +657,33 @@ function setCookie(res, name, value) {
 }
 
 function clearCookie(res, name) {
-  res.setHeader("Set-Cookie", `${name}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
+  appendCookieHeader(res, `${name}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
+  appendCookieHeader(res, `${name}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Secure`);
 }
 
 function clearClientState(res) {
   res.setHeader("Clear-Site-Data", '"cache", "cookies", "storage"');
-  clearCookie(res, "ars_session");
+  clearAllSessionCookies(res);
+}
+
+function clearAllSessionCookies(res) {
+  clearCookie(res, sessionCookieName);
+  clearLegacySessionCookies(res);
+}
+
+function clearLegacySessionCookies(res) {
+  legacySessionCookieNames.forEach((name) => clearCookie(res, name));
+}
+
+function appendCookieHeader(res, cookie) {
+  const current = res.getHeader("Set-Cookie");
+  if (!current) {
+    res.setHeader("Set-Cookie", cookie);
+  } else if (Array.isArray(current)) {
+    res.setHeader("Set-Cookie", [...current, cookie]);
+  } else {
+    res.setHeader("Set-Cookie", [current, cookie]);
+  }
 }
 
 function publicUser(email) {
