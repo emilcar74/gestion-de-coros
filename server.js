@@ -59,6 +59,12 @@ http
 async function route(req, res) {
   const url = new URL(req.url, config.baseUrl);
 
+  if (req.method === "GET" && url.pathname === "/reset-client") {
+    clearClientState(res);
+    redirect(res, "/?reset=1");
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/logo-current") {
     await serveLogo(res);
     return;
@@ -649,6 +655,11 @@ function setCookie(res, name, value) {
 
 function clearCookie(res, name) {
   res.setHeader("Set-Cookie", `${name}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
+}
+
+function clearClientState(res) {
+  res.setHeader("Clear-Site-Data", '"cache", "cookies", "storage"');
+  clearCookie(res, "ars_session");
 }
 
 function publicUser(email) {
