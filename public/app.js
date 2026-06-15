@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260615-7"
+  buildVersion: "20260615-8"
 };
 
 const statusLabels = {
@@ -180,7 +180,7 @@ function monthGrid() {
             .map((event) => {
               const attendance = findAttendance(event.id);
               const exception = attendance && attendance.status !== "coming" ? attendance.status : "";
-              return `<span class="day-dot ${event.type} ${exception}" title="${escapeAttr(exception ? statusLabels[exception] : shortEventName(event))}">${escapeHtml(shortEventName(event))}</span>`;
+              return `<span class="day-dot ${event.type} ${exception}" title="${escapeAttr(exception ? statusLabels[exception] : shortEventName(event))}">${escapeHtml(shortEventName(event))}${exception ? `<em>${exceptionShortLabel(exception)}</em>` : ""}</span>`;
             })
             .join("")}
         </span>
@@ -721,7 +721,7 @@ function calendarBounds() {
   const minEventMonth = sortedMonths[0];
   const maxEventMonth = sortedMonths[sortedMonths.length - 1];
   return {
-    min: shiftMonth(minEventMonth, -1),
+    min: minEventMonth,
     max: maxEventMonth
   };
 }
@@ -758,6 +758,12 @@ function shortEventName(event) {
   if (event.type === "ensayo") return "Ensayo";
   if (event.type === "concierto") return "Concierto";
   return event.title;
+}
+
+function exceptionShortLabel(status) {
+  if (status === "late") return "tarde";
+  if (status === "absent") return "ausente";
+  return "";
 }
 
 function groupedPeople(items) {

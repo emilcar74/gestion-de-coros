@@ -439,7 +439,10 @@ a {
 }
 
 .day-dot {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   overflow: hidden;
   min-height: 20px;
   border-radius: 999px;
@@ -452,6 +455,18 @@ a {
   white-space: nowrap;
 }
 
+.day-dot em {
+  border-radius: 999px;
+  background: rgba(255, 254, 250, 0.72);
+  color: currentColor;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  padding: 1px 5px;
+  text-transform: uppercase;
+}
+
 .day-dot.ensayo {
   color: var(--green);
 }
@@ -460,20 +475,14 @@ a {
   color: var(--accent);
 }
 
-.day-dot.late,
-.day-dot.absent {
-  border-left: 4px solid currentColor;
-  padding-left: 6px;
-}
-
 .day-dot.late {
-  background: rgba(154, 90, 22, 0.13);
-  color: var(--orange);
+  background: #f2d58f;
+  color: #5c3405;
 }
 
 .day-dot.absent {
-  background: rgba(155, 38, 52, 0.12);
-  color: var(--red);
+  background: #7f1d2d;
+  color: #fffefa;
 }
 
 .event {
