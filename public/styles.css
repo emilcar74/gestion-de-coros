@@ -122,6 +122,15 @@ a {
   padding: 8px;
 }
 
+.build-mark {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.62;
+  white-space: nowrap;
+}
+
 .avatar {
   width: 42px;
   height: 42px;
@@ -190,6 +199,11 @@ a {
 .login-panel p {
   color: var(--muted);
   line-height: 1.55;
+}
+
+.login-panel .build-mark {
+  display: inline-block;
+  margin-top: 12px;
 }
 
 .field {

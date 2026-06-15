@@ -8,7 +8,8 @@ const state = {
 
 const appConfig = {
   choirName: "Ars Mvsica",
-  loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado."
+  loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
+  buildVersion: "20260615-5"
 };
 
 const statusLabels = {
@@ -48,6 +49,7 @@ function renderLogin(message = "") {
           <button class="button" type="submit">Enviar enlace de acceso</button>
         </form>
         <div id="loginMessage" class="${message ? "flash" : "hidden"}">${message}</div>
+        ${buildMark()}
       </section>
     </main>
   `;
@@ -81,6 +83,7 @@ function renderApp() {
           </div>
           ${data.user.role === "admin" ? '<span class="role-pill">Admin</span>' : ""}
           <button class="button secondary" id="logoutButton">Salir</button>
+          ${buildMark()}
         </div>
       </header>
 
@@ -642,6 +645,10 @@ function brandLogo() {
       <span class="logo-fallback hidden">AM</span>
     </div>
   `;
+}
+
+function buildMark() {
+  return `<span class="build-mark" title="Versión de la aplicación">v${escapeHtml(appConfig.buildVersion)}</span>`;
 }
 
 function logoUrl() {
