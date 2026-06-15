@@ -439,10 +439,7 @@ a {
 }
 
 .day-dot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  display: block;
   overflow: hidden;
   min-height: 20px;
   border-radius: 999px;
@@ -453,18 +450,6 @@ a {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.day-dot em {
-  border-radius: 999px;
-  background: rgba(255, 254, 250, 0.72);
-  color: currentColor;
-  flex: 0 0 auto;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 900;
-  padding: 1px 5px;
-  text-transform: uppercase;
 }
 
 .day-dot.ensayo {
