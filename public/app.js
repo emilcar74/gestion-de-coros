@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260615-6"
+  buildVersion: "20260615-7"
 };
 
 const statusLabels = {
@@ -79,7 +79,7 @@ function renderApp() {
           ${brandLogo()}
           <div>
             <h1>${escapeHtml(appConfig.choirName)}</h1>
-            <p>${escapeHtml(data.program?.name || "Programa actual")}</p>
+            <p class="program-title"><span>Programa</span>${escapeHtml(data.program?.name || "Programa actual")}</p>
           </div>
         </div>
         <div class="userbar">
@@ -172,19 +172,18 @@ function monthGrid() {
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = `${state.visibleMonth}-${String(day).padStart(2, "0")}`;
     const events = eventsForDate(date);
-    const hasMarked = events.some((event) => {
-      const attendance = findAttendance(event.id);
-      return attendance && attendance.status !== "coming";
-    });
     cells.push(`
       <button class="month-cell ${events.length ? "has-events" : ""} ${date === state.selectedDate ? "selected" : ""}" data-date="${date}">
         <span class="day-number">${day}</span>
         <span class="day-events">
           ${events
-            .map((event) => `<span class="day-dot ${event.type}">${escapeHtml(shortEventName(event))}</span>`)
+            .map((event) => {
+              const attendance = findAttendance(event.id);
+              const exception = attendance && attendance.status !== "coming" ? attendance.status : "";
+              return `<span class="day-dot ${event.type} ${exception}" title="${escapeAttr(exception ? statusLabels[exception] : shortEventName(event))}">${escapeHtml(shortEventName(event))}</span>`;
+            })
             .join("")}
         </span>
-        ${hasMarked ? '<span class="marked">Marcado</span>' : ""}
       </button>
     `);
   }
@@ -225,10 +224,14 @@ function eventCard(event) {
               )
               .join("")}
           </div>
-          <div class="note-row">
+          ${
+            status === "coming"
+              ? ""
+              : `<div class="note-row">
             <input value="${escapeAttr(attendance?.note || "")}" placeholder="Comentario opcional" />
-            <button class="button secondary" data-save-note>Guardar</button>
-          </div>
+            <button class="button secondary" type="button" data-save-note>Guardar</button>
+          </div>`
+          }
         </div>
       </div>
     </article>
@@ -564,12 +567,14 @@ function bindView() {
 
 async function saveAttendance(block, status) {
   await runAction(async () => {
+    const note = status === "coming" ? "" : block.querySelector("input")?.value || "";
     await api(`/api/attendance/${block.dataset.event}`, {
       method: "PUT",
-      body: { status, note: block.querySelector("input").value }
+      body: { status, note }
     });
     await refresh();
     renderApp();
+    showToast("Asistencia guardada.");
   });
 }
 
