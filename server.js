@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = process.env.DATA_DIR || path.join(__dirname, "data");
 const dbPath = path.join(dataDir, "db.json");
+const auditLogPath = path.join(dataDir, "audit.log");
 const seedDbPath = path.join(__dirname, "data", "db.json");
 const publicDir = path.join(__dirname, "public");
 const sessionCookieName = "ars_session_v2";
@@ -92,7 +93,10 @@ async function routeApi(req, res, url) {
     if (!normalizedEmail) return sendJson(res, 400, { error: "Email no válido" });
 
     const verification = await verifyGhostAccess(normalizedEmail);
-    if (!verification.allowed) return sendJson(res, 403, { error: verification.reason });
+    if (!verification.allowed) {
+      await auditLog(req, "auth_request_denied", { email: normalizedEmail, reason: verification.reason });
+      return sendJson(res, 403, { error: verification.reason });
+    }
 
     const db = await readDb();
     upsertProfile(db, normalizedEmail, verification.name);
@@ -105,6 +109,7 @@ async function routeApi(req, res, url) {
       createdAt: new Date().toISOString()
     });
     await writeDb(db);
+    await auditLog(req, "auth_request_allowed", { email: normalizedEmail });
 
     const magicUrl = `${config.baseUrl}/api/auth/consume?token=${token}`;
     const emailSent = await sendMagicLinkEmail(normalizedEmail, magicUrl);
@@ -134,18 +139,24 @@ async function routeApi(req, res, url) {
     const tokenHash = hash(token);
     const link = db.magicLinks.find((item) => item.tokenHash === tokenHash);
     if (!link || new Date(link.expiresAt).getTime() < Date.now()) {
+      await auditLog(req, "magic_link_rejected", { tokenHashPrefix: tokenHash.slice(0, 12) });
       return redirect(res, "/?error=expired");
     }
 
     db.magicLinks = db.magicLinks.filter((item) => item.tokenHash !== tokenHash);
     const sessionToken = randomId();
+    const sessionId = randomId(12);
     db.sessions.push({
+      id: sessionId,
       tokenHash: hash(sessionToken),
       email: link.email,
+      userAgentHash: hashUserAgent(req),
+      createdIp: requestIp(req),
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       createdAt: new Date().toISOString()
     });
     await writeDb(db);
+    await auditLog(req, "session_created", { email: link.email, sessionId });
 
     setCookie(res, sessionCookieName, sessionToken);
     clearLegacySessionCookies(res);
@@ -169,12 +180,14 @@ async function routeApi(req, res, url) {
   if (!session) return;
 
   if (req.method === "GET" && url.pathname === "/api/me") {
+    await auditLog(req, "api_me", { email: session.email, sessionId: session.id || "" });
     sendJson(res, 200, { user: publicUser(session.email) });
     return;
   }
 
   if (req.method === "GET" && url.pathname === "/api/data") {
     const db = await readDb();
+    await auditLog(req, "api_data", { email: session.email, sessionId: session.id || "" });
     sendJson(res, 200, memberData(db, session.email));
     return;
   }
@@ -549,12 +562,15 @@ async function getSession(req) {
   const tokenHash = hash(token);
   const session = db.sessions.find((item) => item.tokenHash === tokenHash);
   if (!session || new Date(session.expiresAt).getTime() < Date.now()) return null;
+  if (session.userAgentHash && session.userAgentHash !== hashUserAgent(req)) return null;
   return { ...session, tokenHash };
 }
 
 async function requireSession(req, res) {
   const session = await getSession(req);
   if (!session) {
+    const names = sessionCookieNamesInRequest(req);
+    if (names.length) await auditLog(req, "session_rejected", { cookieNames: names });
     sendJson(res, 401, { error: "No autenticado" });
     return null;
   }
@@ -563,6 +579,7 @@ async function requireSession(req, res) {
 
 async function serveStatic(res, pathname) {
   const cleanPath = pathname === "/" || pathname === "/app" ? "/index.html" : pathname;
+  if (isBlockedStaticPath(cleanPath)) return send(res, 404, "No encontrado", { "Cache-Control": "no-store" });
   const filePath = path.normalize(path.join(publicDir, cleanPath));
   if (!filePath.startsWith(publicDir)) return send(res, 403, "Prohibido");
   try {
@@ -634,7 +651,8 @@ async function readJson(req, maxBytes = 1024 * 1024) {
 function sendJson(res, status, payload) {
   send(res, status, JSON.stringify(payload), {
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store"
+    "Cache-Control": "no-store",
+    "Vary": "Cookie"
   });
 }
 
@@ -673,6 +691,11 @@ function clearAllSessionCookies(res) {
 
 function clearLegacySessionCookies(res) {
   legacySessionCookieNames.forEach((name) => clearCookie(res, name));
+}
+
+function sessionCookieNamesInRequest(req) {
+  const cookies = parseCookies(req.headers.cookie || "");
+  return [sessionCookieName, ...legacySessionCookieNames].filter((name) => cookies[name]);
 }
 
 function appendCookieHeader(res, cookie) {
@@ -758,6 +781,14 @@ function parseCookies(header) {
   );
 }
 
+function isBlockedStaticPath(pathname) {
+  return (
+    pathname.startsWith("/.") ||
+    pathname.includes("/.") ||
+    ["/env", "/secrets.env"].includes(pathname)
+  );
+}
+
 function splitEmails(value) {
   return value
     .split(",")
@@ -787,6 +818,35 @@ function slugId(value) {
 
 function hash(value) {
   return crypto.createHash("sha256").update(`${config.secret}:${value}`).digest("hex");
+}
+
+function hashUserAgent(req) {
+  return crypto
+    .createHash("sha256")
+    .update(String(req.headers["user-agent"] || ""))
+    .digest("hex");
+}
+
+function requestIp(req) {
+  return String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "")
+    .split(",")[0]
+    .trim();
+}
+
+async function auditLog(req, event, details = {}) {
+  try {
+    await fs.mkdir(dataDir, { recursive: true });
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      event,
+      ip: requestIp(req),
+      uaHash: hashUserAgent(req).slice(0, 16),
+      ...details
+    });
+    await fs.appendFile(auditLogPath, `${line}\n`);
+  } catch (error) {
+    console.error("No se pudo escribir audit.log", error);
+  }
 }
 
 function randomId(bytes = 24) {
