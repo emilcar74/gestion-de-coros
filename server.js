@@ -438,13 +438,13 @@ async function sendMagicLinkEmail(email, magicUrl) {
   const form = new FormData();
   form.set("from", config.mailFrom);
   form.set("to", email);
-  form.set("subject", `Access to ${config.appName}`);
+  form.set("subject", `Acceso a ${config.appName}`);
   form.set(
     "html",
     `
       <div style="font-family: Georgia, serif; color: #25211e; line-height: 1.5">
         <h1 style="font-size: 24px">${escapeHtml(config.appName)}</h1>
-        <p>Use this link to enter the private choir area:</p>
+        <p>Usa este enlace para entrar en la zona privada del coro:</p>
         <p><a href="${escapeHtml(magicUrl)}" style="color: #7f1d2d">Entrar en la zona privada</a></p>
         <p style="color: #716b65">El enlace caduca en 15 minutos.</p>
       </div>
@@ -452,7 +452,7 @@ async function sendMagicLinkEmail(email, magicUrl) {
   );
   form.set(
     "text",
-    `Enter ${config.appName}: ${magicUrl}\n\nThis link expires in 15 minutes.`
+    `Entra en ${config.appName}: ${magicUrl}\n\nEste enlace caduca en 15 minutos.`
   );
 
   const response = await fetch(
@@ -558,11 +558,14 @@ async function serveStatic(res, pathname) {
   if (!filePath.startsWith(publicDir)) return send(res, 403, "Prohibido");
   try {
     const body = await fs.readFile(filePath);
-    res.writeHead(200, { "Content-Type": mimeTypes[path.extname(filePath)] || "text/plain" });
+    res.writeHead(200, {
+      "Content-Type": mimeTypes[path.extname(filePath)] || "text/plain",
+      "Cache-Control": "no-store"
+    });
     res.end(body);
   } catch {
     const body = await fs.readFile(path.join(publicDir, "index.html"));
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
     res.end(body);
   }
 }
@@ -576,7 +579,7 @@ async function serveLogo(res) {
         const body = await fs.readFile(logoPath);
         res.writeHead(200, {
           "Content-Type": db.settings.logoMime || mimeTypes[path.extname(logoPath)] || "image/jpeg",
-          "Cache-Control": "public, max-age=3600"
+          "Cache-Control": "no-store"
         });
         res.end(body);
         return;
@@ -587,7 +590,7 @@ async function serveLogo(res) {
   }
 
   const body = await fs.readFile(path.join(publicDir, "logo.jpg"));
-  res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=3600" });
+  res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "no-store" });
   res.end(body);
 }
 
@@ -620,7 +623,10 @@ async function readJson(req, maxBytes = 1024 * 1024) {
 }
 
 function sendJson(res, status, payload) {
-  send(res, status, JSON.stringify(payload), { "Content-Type": "application/json; charset=utf-8" });
+  send(res, status, JSON.stringify(payload), {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
 }
 
 function send(res, status, body, headers = {}) {
