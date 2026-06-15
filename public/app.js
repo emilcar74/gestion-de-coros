@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260615-5"
+  buildVersion: "20260615-6"
 };
 
 const statusLabels = {
@@ -56,10 +56,17 @@ function renderLogin(message = "") {
 
   document.querySelector("#loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const email = new FormData(event.currentTarget).get("email");
-    const result = await api("/api/auth/request", { method: "POST", body: { email } });
-    const link = result.devMagicUrl ? `<p><a href="${result.devMagicUrl}">Abrir enlace local</a></p>` : "";
-    renderLogin(`${result.message}${link}`);
+    const form = event.currentTarget;
+    const button = form.querySelector("button");
+    const email = new FormData(form).get("email");
+    button.disabled = true;
+    try {
+      const result = await api("/api/auth/request", { method: "POST", body: { email } });
+      const link = result.devMagicUrl ? `<p><a href="${result.devMagicUrl}">Abrir enlace local</a></p>` : "";
+      renderLogin(`${result.message}${link}`);
+    } catch {
+      renderLogin("No se pudo solicitar el enlace. Revisa la conexión e inténtalo de nuevo.");
+    }
   });
 }
 

@@ -32,6 +32,8 @@ const config = {
   mailFrom: process.env.MAIL_FROM || ""
 };
 
+const authRequestMessage = "Si el email está autorizado, recibirás un enlace de acceso.";
+
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -95,7 +97,7 @@ async function routeApi(req, res, url) {
     const verification = await verifyGhostAccess(normalizedEmail);
     if (!verification.allowed) {
       await auditLog(req, "auth_request_denied", { email: normalizedEmail, reason: verification.reason });
-      return sendJson(res, 403, { error: verification.reason });
+      return sendJson(res, 200, { ok: true, message: authRequestMessage });
     }
 
     const db = await readDb();
@@ -117,7 +119,7 @@ async function routeApi(req, res, url) {
     if (config.devAuth || !mailConfigured) {
       console.log(`Enlace mágico para ${normalizedEmail}: ${magicUrl}`);
     }
-    let message = "Si el email está autorizado, recibirás un enlace de acceso.";
+    let message = authRequestMessage;
     if (!emailSent && mailConfigured) {
       message = "No se pudo enviar el email de acceso. Revisa la configuración de Mailgun.";
     } else if (!emailSent && config.devAuth) {
