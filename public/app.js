@@ -7,8 +7,8 @@ const state = {
 };
 
 const appConfig = {
-  choirName: "Choir Private Area",
-  loginSubtitle: "Private area for choir members. Enter with your registered email."
+  choirName: "Ars Mvsica",
+  loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado."
 };
 
 const statusLabels = {
@@ -255,7 +255,6 @@ function resourcesView() {
             ${resourceHeading("Listas de reproducción", "Apple Music, Spotify y YouTube")}
             ${playlistLinks.length ? playlistLinks.map(([label, url]) => `<p><a href="${escapeAttr(url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a></p>`).join("") : empty("Todavía no hay listas de reproducción.")}
           </article>
-          ${state.data.resources.filter((resource) => resource.type !== "partituras").map(resourceCard).join("")}
         </div>
       </section>
       ${
@@ -347,7 +346,7 @@ function adminView() {
         <div class="panel-head">
           <div>
             <h2>Editar contenido</h2>
-            <p>Añade eventos y enlaces al programa activo.</p>
+            <p>Añade eventos al programa activo.</p>
           </div>
         </div>
         <div class="panel-body">
@@ -364,13 +363,10 @@ function adminView() {
             <button class="button" type="submit">Añadir evento</button>
           </form>
           <hr />
-          <form id="resourceForm">
-            <input type="hidden" name="programId" value="${escapeAttr(activeProgramId)}" />
-            <label class="field"><span>Título</span><input name="title" required /></label>
-            <label class="field"><span>Tipo</span><input name="type" placeholder="partituras, audios, enlace" /></label>
-            <label class="field"><span>URL</span><input name="url" type="url" required /></label>
-            <label class="field"><span>Notas</span><textarea name="notes"></textarea></label>
-            <button class="button secondary" type="submit">Añadir enlace</button>
+          <form id="logoForm">
+            <h3>Logotipo</h3>
+            <label class="field"><span>Nuevo logotipo</span><input name="logo" type="file" accept="image/jpeg,image/png" required /></label>
+            <button class="button secondary" type="submit">Cambiar logotipo</button>
           </form>
           <hr />
           <form id="resetProgramForm" class="danger-zone">
@@ -402,7 +398,10 @@ function adminEventSummary(event) {
           <label class="field wide"><span>Lugar</span><input name="location" value="${escapeAttr(event.location || "")}" /></label>
           <label class="field wide"><span>Notas para esta fecha</span><textarea name="notes">${escapeHtml(event.notes || "")}</textarea></label>
         </div>
-        <button class="button secondary" type="submit">Guardar fecha</button>
+        <div class="event-actions">
+          <button class="button secondary" type="submit">Guardar fecha</button>
+          <button class="button danger" type="button" data-event-delete="${escapeAttr(event.id)}">Borrar evento</button>
+        </div>
       </form>
       <div class="summary-columns">
         <div class="summary-box">
@@ -476,19 +475,12 @@ function bindView() {
 
   document.querySelector("#eventForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     await runAction(async () => {
-      await api("/api/admin/events", { method: "POST", body: formBody(event.currentTarget) });
-      event.currentTarget.reset();
+      await api("/api/admin/events", { method: "POST", body: formBody(form) });
+      form.reset();
       await refreshAdmin();
-    });
-  });
-
-  document.querySelector("#resourceForm")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    await runAction(async () => {
-      await api("/api/admin/resources", { method: "POST", body: formBody(event.currentTarget) });
-      event.currentTarget.reset();
-      await refreshAdmin();
+      showToast("Evento añadido.");
     });
   });
 
@@ -496,9 +488,24 @@ function bindView() {
     event.preventDefault();
     await runAction(async () => {
       await api("/api/admin/program", { method: "POST", body: formBody(event.currentTarget) });
-      await refreshAdmin();
       state.screen = "resources";
+      await refresh();
+      showToast("Repertorio guardado.");
       renderApp();
+    });
+  });
+
+  document.querySelector("#logoForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const file = form.elements.logo.files?.[0];
+    if (!file) return;
+    await runAction(async () => {
+      const image = await fileToDataUrl(file);
+      await api("/api/admin/logo", { method: "POST", body: { image } });
+      form.reset();
+      await refreshAdmin();
+      showToast("Logotipo actualizado.");
     });
   });
 
@@ -525,6 +532,21 @@ function bindView() {
           body: formBody(form)
         });
         await refreshAdmin();
+        showToast("Fecha guardada.");
+      });
+    });
+  });
+
+  document.querySelectorAll("[data-event-delete]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-event-edit]");
+      const title = form?.querySelector('input[name="title"]')?.value || "este evento";
+      const confirmed = window.confirm(`¿Quieres borrar "${title}"? También se borrarán sus avisos de asistencia.`);
+      if (!confirmed) return;
+      await runAction(async () => {
+        await api(`/api/admin/events/${button.dataset.eventDelete}`, { method: "DELETE" });
+        await refreshAdmin();
+        showToast("Evento borrado.");
       });
     });
   });
@@ -575,11 +597,11 @@ async function runAction(action) {
   try {
     await action();
   } catch (error) {
-    showToast(error.message || "No se pudo guardar. Revisa la conexión.");
+    showToast(error.message || "No se pudo guardar. Revisa la conexión.", "error");
   }
 }
 
-function showToast(message) {
+function showToast(message, type = "success") {
   let toast = document.querySelector(".toast");
   if (!toast) {
     toast = document.createElement("div");
@@ -587,6 +609,7 @@ function showToast(message) {
     document.body.appendChild(toast);
   }
   toast.textContent = message;
+  toast.dataset.type = type;
   toast.classList.add("visible");
   window.setTimeout(() => toast.classList.remove("visible"), 4200);
 }
@@ -595,13 +618,35 @@ function formBody(form) {
   return Object.fromEntries(new FormData(form).entries());
 }
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+      reject(new Error("El logo debe ser JPG o PNG."));
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      reject(new Error("El logo debe ocupar menos de 2 MB."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(new Error("No se pudo leer la imagen.")));
+    reader.readAsDataURL(file);
+  });
+}
+
 function brandLogo() {
   return `
     <div class="logo-wrap">
-      <img class="logo-img" src="/logo.jpg" alt="${escapeAttr(appConfig.choirName)}" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden')" />
+      <img class="logo-img" src="${escapeAttr(logoUrl())}" alt="${escapeAttr(appConfig.choirName)}" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden')" />
       <span class="logo-fallback hidden">AM</span>
     </div>
   `;
+}
+
+function logoUrl() {
+  const version = state.data?.settings?.logoUpdatedAt || "default";
+  return `/logo-current?v=${encodeURIComponent(version)}`;
 }
 
 function resourceHeading(title, subtitle) {

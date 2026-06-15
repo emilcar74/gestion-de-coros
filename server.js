@@ -16,7 +16,7 @@ loadEnv(path.join(__dirname, ".env"));
 const config = {
   port: Number(process.env.PORT || 3010),
   baseUrl: process.env.APP_BASE_URL || "http://localhost:3010",
-  appName: process.env.APP_NAME || "Choir Private Area",
+  appName: process.env.APP_NAME || "Ars Mvsica",
   secret: process.env.APP_SECRET || "dev-secret-change-me",
   ghostUrl: cleanUrl(process.env.GHOST_API_URL || ""),
   ghostAdminKey: process.env.GHOST_ADMIN_API_KEY || "",
@@ -58,6 +58,11 @@ http
 
 async function route(req, res) {
   const url = new URL(req.url, config.baseUrl);
+
+  if (req.method === "GET" && url.pathname === "/logo-current") {
+    await serveLogo(res);
+    return;
+  }
 
   if (url.pathname.startsWith("/api/")) {
     await routeApi(req, res, url);
@@ -333,6 +338,43 @@ async function routeApi(req, res, url) {
     return;
   }
 
+  if (req.method === "DELETE" && url.pathname.startsWith("/api/admin/events/")) {
+    if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
+    const eventId = decodeURIComponent(url.pathname.split("/").pop());
+    const db = await readDb();
+    const exists = db.events.some((item) => item.id === eventId);
+    if (!exists) return sendJson(res, 404, { error: "Evento no encontrado" });
+
+    db.events = db.events.filter((item) => item.id !== eventId);
+    db.attendance = db.attendance.filter((item) => item.eventId !== eventId);
+
+    await writeDb(db);
+    sendJson(res, 200, adminData(db));
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/logo") {
+    if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
+    const body = await readJson(req, 3 * 1024 * 1024);
+    const logo = parseImageDataUrl(body.image);
+    if (!logo) return sendJson(res, 400, { error: "El logo debe ser JPG o PNG" });
+
+    const db = await readDb();
+    const fileName = `logo-current.${logo.ext}`;
+    await fs.mkdir(dataDir, { recursive: true });
+    await fs.writeFile(path.join(dataDir, fileName), logo.buffer);
+    db.settings = {
+      ...(db.settings || {}),
+      logoFile: fileName,
+      logoMime: logo.mime,
+      logoUpdatedAt: new Date().toISOString()
+    };
+
+    await writeDb(db);
+    sendJson(res, 200, adminData(db));
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/admin/resources") {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const body = await readJson(req);
@@ -459,6 +501,7 @@ function memberData(db, email) {
     program,
     events,
     resources: db.resources.filter((resource) => resource.programId === program?.id),
+    settings: publicSettings(db),
     profile: db.profiles.find((profile) => profile.email === email) || null,
     attendance: db.attendance.filter((item) => item.email === email)
   };
@@ -524,6 +567,30 @@ async function serveStatic(res, pathname) {
   }
 }
 
+async function serveLogo(res) {
+  try {
+    const db = await readDb();
+    if (db.settings?.logoFile) {
+      const logoPath = path.normalize(path.join(dataDir, db.settings.logoFile));
+      if (logoPath.startsWith(dataDir)) {
+        const body = await fs.readFile(logoPath);
+        res.writeHead(200, {
+          "Content-Type": db.settings.logoMime || mimeTypes[path.extname(logoPath)] || "image/jpeg",
+          "Cache-Control": "public, max-age=3600"
+        });
+        res.end(body);
+        return;
+      }
+    }
+  } catch {
+    // Fall back to the bundled logo below.
+  }
+
+  const body = await fs.readFile(path.join(publicDir, "logo.jpg"));
+  res.writeHead(200, { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=3600" });
+  res.end(body);
+}
+
 async function readDb() {
   await ensureDb();
   return JSON.parse(await fs.readFile(dbPath, "utf8"));
@@ -543,9 +610,12 @@ async function ensureDb() {
   }
 }
 
-async function readJson(req) {
+async function readJson(req, maxBytes = 1024 * 1024) {
   let body = "";
-  for await (const chunk of req) body += chunk;
+  for await (const chunk of req) {
+    body += chunk;
+    if (Buffer.byteLength(body) > maxBytes) throw new Error("Petición demasiado grande");
+  }
   return body ? JSON.parse(body) : {};
 }
 
@@ -602,6 +672,36 @@ function cleanPlaylists(value) {
     spotify: cleanText(value.spotify, 700),
     youtube: cleanText(value.youtube, 700)
   };
+}
+
+function publicSettings(db) {
+  return {
+    logoUpdatedAt: db.settings?.logoUpdatedAt || ""
+  };
+}
+
+function parseImageDataUrl(value) {
+  const match = String(value || "").match(/^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+
+  const mime = match[1];
+  const buffer = Buffer.from(match[2], "base64");
+  if (!buffer.length || buffer.length > 2 * 1024 * 1024) return null;
+
+  const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const isPng =
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a;
+
+  if (mime === "image/jpeg" && isJpeg) return { buffer, mime, ext: "jpg" };
+  if (mime === "image/png" && isPng) return { buffer, mime, ext: "png" };
+  return null;
 }
 
 function defaultScoreFolderUrl() {

@@ -259,6 +259,13 @@ a {
   color: white;
 }
 
+.event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
@@ -682,6 +689,11 @@ a {
   transition:
     opacity 160ms ease,
     transform 160ms ease;
+}
+
+.toast[data-type="success"] {
+  border-color: rgba(45, 110, 82, 0.24);
+  color: #245d44;
 }
 
 .toast.visible {
