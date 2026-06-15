@@ -13,6 +13,8 @@ const seedDbPath = path.join(__dirname, "data", "db.json");
 const publicDir = path.join(__dirname, "public");
 const sessionCookieName = "ars_session_v2";
 const legacySessionCookieNames = ["ars_session"];
+const demoEmail = "fecorem@fecorem.es";
+const demoStores = new Map();
 
 loadEnv(path.join(__dirname, ".env"));
 
@@ -33,6 +35,7 @@ const config = {
 };
 
 const authRequestMessage = "Si el email está autorizado, recibirás un enlace de acceso.";
+const demoLoginMessage = "Entrando en la demo.";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -93,6 +96,29 @@ async function routeApi(req, res, url) {
     const { email } = await readJson(req);
     const normalizedEmail = normalizeEmail(email);
     if (!normalizedEmail) return sendJson(res, 400, { error: "Email no válido" });
+
+    if (isDemoEmail(normalizedEmail)) {
+      const sessionToken = randomId();
+      const sessionId = randomId(12);
+      const db = await readDb();
+      db.sessions.push({
+        id: sessionId,
+        tokenHash: hash(sessionToken),
+        email: normalizedEmail,
+        demo: true,
+        userAgentHash: hashUserAgent(req),
+        createdIp: requestIp(req),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString()
+      });
+      await writeDb(db);
+      demoStores.set(sessionId, buildDemoDb());
+      await auditLog(req, "demo_session_created", { email: normalizedEmail, sessionId });
+      setCookie(res, sessionCookieName, sessionToken);
+      clearLegacySessionCookies(res);
+      sendJson(res, 200, { ok: true, message: demoLoginMessage, redirectTo: "/app" });
+      return;
+    }
 
     const verification = await verifyGhostAccess(normalizedEmail);
     if (!verification.allowed) {
@@ -172,6 +198,7 @@ async function routeApi(req, res, url) {
       const db = await readDb();
       db.sessions = db.sessions.filter((item) => item.tokenHash !== session.tokenHash);
       await writeDb(db);
+      if (isDemoSession(session)) demoStores.delete(session.id);
     }
     clearAllSessionCookies(res);
     sendJson(res, 200, { ok: true });
@@ -188,7 +215,7 @@ async function routeApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/data") {
-    const db = await readDb();
+    const db = await readSessionDb(session);
     await auditLog(req, "api_data", { email: session.email, sessionId: session.id || "" });
     sendJson(res, 200, memberData(db, session.email));
     return;
@@ -196,11 +223,11 @@ async function routeApi(req, res, url) {
 
   if (req.method === "PUT" && url.pathname === "/api/me/profile") {
     const body = await readJson(req);
-    const db = await readDb();
+    const db = await readSessionDb(session);
     const profile = upsertProfile(db, session.email);
     profile.name = cleanText(body.name, 90);
     profile.voice = cleanText(body.voice, 40);
-    await writeDb(db);
+    await writeSessionDb(session, db);
     sendJson(res, 200, { profile });
     return;
   }
@@ -208,7 +235,7 @@ async function routeApi(req, res, url) {
   if (req.method === "PUT" && url.pathname.startsWith("/api/attendance/")) {
     const eventId = decodeURIComponent(url.pathname.split("/").pop());
     const body = await readJson(req);
-    const db = await readDb();
+    const db = await readSessionDb(session);
     if (!db.events.some((event) => event.id === eventId)) {
       return sendJson(res, 404, { error: "Evento no encontrado" });
     }
@@ -231,14 +258,14 @@ async function routeApi(req, res, url) {
         updatedAt: new Date().toISOString()
       });
     }
-    await writeDb(db);
+    await writeSessionDb(session, db);
     sendJson(res, 200, memberData(db, session.email));
     return;
   }
 
   if (req.method === "GET" && url.pathname === "/api/admin") {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
-    const db = await readDb();
+    const db = await readSessionDb(session);
     sendJson(res, 200, adminData(db));
     return;
   }
@@ -246,7 +273,7 @@ async function routeApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/admin/programs") {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const body = await readJson(req);
-    const db = await readDb();
+    const db = await readSessionDb(session);
     if (body.active) db.programs.forEach((program) => (program.active = false));
     const program = {
       id: slugId(body.name || "programa"),
@@ -259,7 +286,7 @@ async function routeApi(req, res, url) {
       createdAt: new Date().toISOString()
     };
     db.programs.push(program);
-    await writeDb(db);
+    await writeSessionDb(session, db);
     sendJson(res, 200, adminData(db));
     return;
   }
@@ -267,7 +294,7 @@ async function routeApi(req, res, url) {
   if ((req.method === "PUT" || req.method === "POST") && url.pathname === "/api/admin/program") {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const body = await readJson(req);
-    const db = await readDb();
+    const db = await readSessionDb(session);
     const program = activeProgram(db);
     if (!program) return sendJson(res, 404, { error: "Programa no encontrado" });
 
@@ -278,7 +305,7 @@ async function routeApi(req, res, url) {
     program.playlists = cleanPlaylists(body);
     program.updatedAt = new Date().toISOString();
 
-    await writeDb(db);
+    await writeSessionDb(session, db);
     sendJson(res, 200, adminData(db));
     return;
   }
@@ -286,7 +313,7 @@ async function routeApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/admin/program/reset") {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const body = await readJson(req);
-    const db = await readDb();
+    const db = await readSessionDb(session);
     const current = activeProgram(db);
     const programId = current?.id || "programa-actual";
 
@@ -316,7 +343,7 @@ async function routeApi(req, res, url) {
     ];
     db.attendance = [];
 
-    await writeDb(db);
+    await writeSessionDb(session, db);
     sendJson(res, 200, adminData(db));
     return;
   }
@@ -324,7 +351,7 @@ async function routeApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/admin/events") {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const body = await readJson(req);
-    const db = await readDb();
+    const db = await readSessionDb(session);
     db.events.push({
       id: slugId(`${body.date || "evento"}-${body.title || "evento"}`),
       programId: body.programId || activeProgram(db)?.id,
@@ -336,7 +363,7 @@ async function routeApi(req, res, url) {
       notes: cleanText(body.notes, 500),
       createdAt: new Date().toISOString()
     });
-    await writeDb(db);
+    await writeSessionDb(session, db);
     sendJson(res, 200, adminData(db));
     return;
   }
@@ -345,7 +372,7 @@ async function routeApi(req, res, url) {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const eventId = decodeURIComponent(url.pathname.split("/").pop());
     const body = await readJson(req);
-    const db = await readDb();
+    const db = await readSessionDb(session);
     const event = db.events.find((item) => item.id === eventId);
     if (!event) return sendJson(res, 404, { error: "Evento no encontrado" });
 
@@ -357,7 +384,7 @@ async function routeApi(req, res, url) {
     event.notes = cleanText(body.notes, 700);
     event.updatedAt = new Date().toISOString();
 
-    await writeDb(db);
+    await writeSessionDb(session, db);
     sendJson(res, 200, adminData(db));
     return;
   }
@@ -365,14 +392,14 @@ async function routeApi(req, res, url) {
   if (req.method === "DELETE" && url.pathname.startsWith("/api/admin/events/")) {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const eventId = decodeURIComponent(url.pathname.split("/").pop());
-    const db = await readDb();
+    const db = await readSessionDb(session);
     const exists = db.events.some((item) => item.id === eventId);
     if (!exists) return sendJson(res, 404, { error: "Evento no encontrado" });
 
     db.events = db.events.filter((item) => item.id !== eventId);
     db.attendance = db.attendance.filter((item) => item.eventId !== eventId);
 
-    await writeDb(db);
+    await writeSessionDb(session, db);
     sendJson(res, 200, adminData(db));
     return;
   }
@@ -383,7 +410,17 @@ async function routeApi(req, res, url) {
     const logo = parseImageDataUrl(body.image);
     if (!logo) return sendJson(res, 400, { error: "El logo debe ser JPG o PNG" });
 
-    const db = await readDb();
+    const db = await readSessionDb(session);
+    if (isDemoSession(session)) {
+      db.settings = {
+        ...(db.settings || {}),
+        logoUpdatedAt: new Date().toISOString()
+      };
+      await writeSessionDb(session, db);
+      sendJson(res, 200, adminData(db));
+      return;
+    }
+
     const fileName = `logo-current.${logo.ext}`;
     await fs.mkdir(dataDir, { recursive: true });
     await fs.writeFile(path.join(dataDir, fileName), logo.buffer);
@@ -402,7 +439,7 @@ async function routeApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/admin/resources") {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const body = await readJson(req);
-    const db = await readDb();
+    const db = await readSessionDb(session);
     db.resources.push({
       id: slugId(`${body.type || "recurso"}-${body.title || "recurso"}`),
       programId: body.programId || activeProgram(db)?.id,
@@ -412,7 +449,7 @@ async function routeApi(req, res, url) {
       notes: cleanText(body.notes, 300),
       createdAt: new Date().toISOString()
     });
-    await writeDb(db);
+    await writeSessionDb(session, db);
     sendJson(res, 200, adminData(db));
     return;
   }
@@ -632,6 +669,130 @@ async function writeDb(db) {
   await fs.writeFile(dbPath, `${JSON.stringify(db, null, 2)}\n`);
 }
 
+async function readSessionDb(session) {
+  if (isDemoSession(session)) return demoDbForSession(session);
+  return readDb();
+}
+
+async function writeSessionDb(session, db) {
+  if (isDemoSession(session)) {
+    demoStores.set(session.id, db);
+    return;
+  }
+  await writeDb(db);
+}
+
+function demoDbForSession(session) {
+  if (!demoStores.has(session.id)) demoStores.set(session.id, buildDemoDb());
+  return demoStores.get(session.id);
+}
+
+function buildDemoDb() {
+  const programId = "demo-programa-otono";
+  const profiles = [
+    { email: demoEmail, name: "Demo Fecorem", voice: "Soprano", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "ana.soprano@example.com", name: "Ana Valverde", voice: "Soprano", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "lucia.alto@example.com", name: "Lucia Serrano", voice: "Alto", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "marina.alto@example.com", name: "Marina Rios", voice: "Alto", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "pablo.tenor@example.com", name: "Pablo Navas", voice: "Tenor", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "hector.tenor@example.com", name: "Hector Molina", voice: "Tenor", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "carlos.bajo@example.com", name: "Carlos Beltran", voice: "Bajo", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "ines.soprano@example.com", name: "Ines Duarte", voice: "Soprano", createdAt: "2026-06-15T00:00:00.000Z" }
+  ];
+  const events = [
+    demoEvent(programId, "ensayo-2026-09-03", "Ensayo de lectura", "ensayo", "2026-09-03", "19:30", "Centro cultural", "Lectura general del programa."),
+    demoEvent(programId, "ensayo-2026-09-10", "Ensayo seccional", "ensayo", "2026-09-10", "19:30", "Aula de musica", "Trabajo por cuerdas."),
+    demoEvent(programId, "ensayo-2026-09-17", "Ensayo tutti", "ensayo", "2026-09-17", "19:30", "Centro cultural", "Obras 1 y 2."),
+    demoEvent(programId, "ensayo-2026-09-24", "Ensayo con piano", "ensayo", "2026-09-24", "19:30", "Auditorio municipal", "Primer pase con acompanamiento."),
+    demoEvent(programId, "ensayo-2026-10-01", "Ensayo", "ensayo", "2026-10-01", "19:30", "Centro cultural", "Afinacion y texto."),
+    demoEvent(programId, "ensayo-2026-10-08", "Ensayo", "ensayo", "2026-10-08", "19:30", "Centro cultural", "Bloque central del programa."),
+    demoEvent(programId, "concierto-2026-10-16", "Concierto didactico", "concierto", "2026-10-16", "20:00", "Teatro de la Villa", "Programa reducido."),
+    demoEvent(programId, "ensayo-2026-10-22", "Ensayo", "ensayo", "2026-10-22", "19:30", "Centro cultural", "Repaso del concierto y nuevas obras."),
+    demoEvent(programId, "ensayo-2026-11-05", "Ensayo", "ensayo", "2026-11-05", "19:30", "Centro cultural", "Trabajo de dinamicas."),
+    demoEvent(programId, "ensayo-2026-11-12", "Ensayo con solistas", "ensayo", "2026-11-12", "19:30", "Auditorio municipal", "Entradas y transiciones."),
+    demoEvent(programId, "concierto-2026-11-21", "Encuentro coral", "concierto", "2026-11-21", "19:00", "Iglesia de San Miguel", "Con otros dos coros invitados."),
+    demoEvent(programId, "ensayo-2026-11-26", "Ensayo", "ensayo", "2026-11-26", "19:30", "Centro cultural", "Ajustes tras el encuentro."),
+    demoEvent(programId, "ensayo-2026-12-03", "Ensayo general", "ensayo", "2026-12-03", "19:30", "Auditorio municipal", "Programa completo sin cortes."),
+    demoEvent(programId, "ensayo-2026-12-10", "Ensayo general", "ensayo", "2026-12-10", "19:30", "Auditorio municipal", "Orden definitivo."),
+    demoEvent(programId, "concierto-2026-12-13", "Concierto de cierre", "concierto", "2026-12-13", "20:00", "Auditorio municipal", "Convocatoria a las 18:45."),
+    demoEvent(programId, "concierto-2026-12-20", "Concierto benefico", "concierto", "2026-12-20", "19:30", "Parroquia de Santa Cecilia", "Ultimo concierto del ciclo.")
+  ];
+  return {
+    programs: [
+      {
+        id: programId,
+        name: "Demo: Cantares de invierno",
+        description: "Programa ficticio para mostrar la gestion de repertorio, calendario y avisos de asistencia.",
+        works: [
+          "Aurora de los caminos - M. Ledesma",
+          "Tres nanas del agua - A. Fictoria",
+          "Canticum breve - L. Moreno",
+          "Romance del aire claro - Popular, arr. S. Vidal",
+          "Lux serena - E. Navarro"
+        ].join("\n"),
+        scoreFolderUrl: "https://example.com/demo/partituras",
+        playlists: {
+          appleMusic: "https://music.apple.com/",
+          spotify: "https://open.spotify.com/",
+          youtube: "https://www.youtube.com/"
+        },
+        active: true,
+        createdAt: "2026-06-15T00:00:00.000Z"
+      }
+    ],
+    events,
+    resources: [
+      {
+        id: "demo-carpeta-partituras",
+        programId,
+        title: "Carpeta de partituras demo",
+        type: "partituras",
+        url: "https://example.com/demo/partituras",
+        notes: "En una instalacion real este enlace apunta a Drive, Dropbox u otra carpeta compartida.",
+        createdAt: "2026-06-15T00:00:00.000Z"
+      }
+    ],
+    profiles,
+    attendance: demoAttendance(events),
+    settings: {},
+    magicLinks: [],
+    sessions: []
+  };
+}
+
+function demoEvent(programId, id, title, type, date, time, location, notes) {
+  return { id, programId, title, type, date, time, location, notes, createdAt: "2026-06-15T00:00:00.000Z" };
+}
+
+function demoAttendance(events) {
+  const samples = [
+    ["ensayo-2026-09-10", "lucia.alto@example.com", "late", "Salgo tarde del trabajo."],
+    ["ensayo-2026-09-17", "pablo.tenor@example.com", "absent", "Viaje familiar."],
+    ["ensayo-2026-09-24", "ana.soprano@example.com", "late", "Llegare unos 20 minutos tarde."],
+    ["concierto-2026-10-16", "marina.alto@example.com", "absent", "Compromiso profesional."],
+    ["ensayo-2026-10-22", "carlos.bajo@example.com", "late", "Clase hasta las 19:45."],
+    ["ensayo-2026-11-05", "ines.soprano@example.com", "absent", "No estare en la ciudad."],
+    ["ensayo-2026-11-12", "hector.tenor@example.com", "late", "Llego desde otra reunion."],
+    ["concierto-2026-11-21", "lucia.alto@example.com", "late", "Llegare justo a la convocatoria."],
+    ["ensayo-2026-11-26", "pablo.tenor@example.com", "late", "Trafico previsto."],
+    ["ensayo-2026-12-03", "ana.soprano@example.com", "absent", "Guardia medica."],
+    ["ensayo-2026-12-10", "marina.alto@example.com", "late", "Llegare a las 20:00."],
+    ["concierto-2026-12-13", "carlos.bajo@example.com", "absent", "Baja temporal."],
+    ["concierto-2026-12-20", "hector.tenor@example.com", "late", "Avisare si puedo llegar antes."]
+  ];
+  const eventIds = new Set(events.map((event) => event.id));
+  return samples
+    .filter(([eventId]) => eventIds.has(eventId))
+    .map(([eventId, email, status, note], index) => ({
+      id: `demo-asistencia-${index + 1}`,
+      eventId,
+      email,
+      status,
+      note,
+      updatedAt: "2026-06-15T00:00:00.000Z"
+    }));
+}
+
 async function ensureDb() {
   try {
     await fs.access(dbPath);
@@ -715,6 +876,7 @@ function publicUser(email) {
   return {
     email,
     role: isAdmin(email) ? "admin" : "member",
+    demo: isDemoEmail(email),
     avatarUrl: gravatarUrl(email)
   };
 }
@@ -725,7 +887,15 @@ function gravatarUrl(email) {
 }
 
 function isAdmin(email) {
-  return Boolean(email) && config.adminEmails.includes(email.toLowerCase());
+  return Boolean(email) && (isDemoEmail(email) || config.adminEmails.includes(email.toLowerCase()));
+}
+
+function isDemoEmail(email) {
+  return normalizeEmail(email) === demoEmail;
+}
+
+function isDemoSession(session) {
+  return Boolean(session?.demo && isDemoEmail(session.email));
 }
 
 function activeProgram(db) {

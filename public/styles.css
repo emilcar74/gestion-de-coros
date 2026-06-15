@@ -196,6 +196,11 @@ a {
   font-weight: 800;
 }
 
+.role-pill.demo {
+  background: rgba(184, 138, 43, 0.16);
+  color: #6d4c0c;
+}
+
 .login {
   min-height: 100vh;
   display: grid;

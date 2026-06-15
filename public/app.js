@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260615-9"
+  buildVersion: "20260615-11"
 };
 
 const statusLabels = {
@@ -62,6 +62,10 @@ function renderLogin(message = "") {
     button.disabled = true;
     try {
       const result = await api("/api/auth/request", { method: "POST", body: { email } });
+      if (result.redirectTo) {
+        window.location.href = result.redirectTo;
+        return;
+      }
       const link = result.devMagicUrl ? `<p><a href="${result.devMagicUrl}">Abrir enlace local</a></p>` : "";
       renderLogin(`${result.message}${link}`);
     } catch {
@@ -89,6 +93,7 @@ function renderApp() {
             <span>${escapeHtml(data.user.email)}</span>
           </div>
           ${data.user.role === "admin" ? '<span class="role-pill">Admin</span>' : ""}
+          ${data.user.demo ? '<span class="role-pill demo">Demo</span>' : ""}
           <button class="button secondary" id="logoutButton">Salir</button>
           ${buildMark()}
         </div>
