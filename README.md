@@ -6,6 +6,31 @@ Una web privada para gestionar ensayos y otros conceptos relativos a un programa
 
 It was born for Ars Mvsica, but the goal is to make it useful for any choir director who needs a lightweight private area without running a full membership platform.
 
+## Important: Authentication Is Swappable
+
+This project currently uses Ghost Members because the first real deployment lives next to a Ghost blog.
+
+That is not a requirement.
+
+The app only needs to answer one question:
+
+```text
+Given an email, is this person denied, a choir member, or an admin?
+```
+
+Future maintainers, developers, or AI agents should feel free to replace Ghost with a more common source of users, such as:
+
+- a plain text allowlist;
+- a CSV file;
+- SQLite;
+- Supabase;
+- Google or Microsoft login;
+- Auth0, Clerk, or another identity provider.
+
+The magic-link login and the choir workflow can stay the same while the membership lookup changes.
+
+See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) before adapting authentication. It explains the contract, the current Ghost adapter, and concrete replacement strategies.
+
 ## What It Does
 
 - Magic-link login by email.
@@ -33,30 +58,20 @@ The default implementation authenticates against Ghost:
 - Ghost is queried server-side through the Ghost Admin API.
 - The Ghost Admin API key is never exposed to the browser.
 
-This is intentionally simple: Ghost remains the membership list, while this app owns the private choir workflow.
+This is intentionally simple: Ghost remains the membership list for the original deployment, while this app owns the private choir workflow.
 
-## Other Authentication Ideas
+For most new deployments, Ghost will not be the natural choice. Start from [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) and replace the authorization lookup while preserving the privacy rules.
 
-Future maintainers or AI agents should feel free to replace the Ghost adapter.
+## Authorization Rule To Preserve
 
-Good alternatives:
-
-- A plain text allowlist such as `allowed-emails.txt`.
-- A CSV with `email,name,voice,role`.
-- SQLite table for users.
-- Google Workspace or Microsoft login.
-- Supabase Auth.
-- Auth0, Clerk, Lucia, NextAuth, or another common auth layer.
-- A shared invite code plus email verification.
-
-The key authorization rule should remain:
+The key authorization rule should always remain:
 
 ```text
 admin can see everything;
 member can only see and edit their own attendance.
 ```
 
-See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for implementation notes.
+Do not weaken this when replacing Ghost.
 
 ## Implementations Included
 
