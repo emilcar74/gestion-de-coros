@@ -766,17 +766,29 @@ function demoEvent(programId, id, title, type, date, time, location, notes) {
 
 function demoAttendance(events) {
   const samples = [
+    ["ensayo-2026-09-03", "ana.soprano@example.com", "coming", ""],
+    ["ensayo-2026-09-03", "lucia.alto@example.com", "coming", ""],
+    ["ensayo-2026-09-03", "pablo.tenor@example.com", "coming", ""],
     ["ensayo-2026-09-10", "lucia.alto@example.com", "late", "Salgo tarde del trabajo."],
+    ["ensayo-2026-09-10", "carlos.bajo@example.com", "coming", ""],
     ["ensayo-2026-09-17", "pablo.tenor@example.com", "absent", "Viaje familiar."],
+    ["ensayo-2026-09-17", "ines.soprano@example.com", "coming", ""],
     ["ensayo-2026-09-24", "ana.soprano@example.com", "late", "Llegare unos 20 minutos tarde."],
     ["concierto-2026-10-16", "marina.alto@example.com", "absent", "Compromiso profesional."],
+    ["concierto-2026-10-16", "hector.tenor@example.com", "coming", ""],
+    ["concierto-2026-10-16", "carlos.bajo@example.com", "coming", ""],
     ["ensayo-2026-10-22", "carlos.bajo@example.com", "late", "Clase hasta las 19:45."],
     ["ensayo-2026-11-05", "ines.soprano@example.com", "absent", "No estare en la ciudad."],
+    ["ensayo-2026-11-05", "ana.soprano@example.com", "coming", ""],
+    ["ensayo-2026-11-05", "hector.tenor@example.com", "coming", ""],
     ["ensayo-2026-11-12", "hector.tenor@example.com", "late", "Llego desde otra reunion."],
     ["concierto-2026-11-21", "lucia.alto@example.com", "late", "Llegare justo a la convocatoria."],
+    ["concierto-2026-11-21", "marina.alto@example.com", "coming", ""],
+    ["concierto-2026-11-21", "carlos.bajo@example.com", "coming", ""],
     ["ensayo-2026-11-26", "pablo.tenor@example.com", "late", "Trafico previsto."],
     ["ensayo-2026-12-03", "ana.soprano@example.com", "absent", "Guardia medica."],
     ["ensayo-2026-12-10", "marina.alto@example.com", "late", "Llegare a las 20:00."],
+    ["ensayo-2026-12-10", "lucia.alto@example.com", "coming", ""],
     ["concierto-2026-12-13", "carlos.bajo@example.com", "absent", "Baja temporal."],
     ["concierto-2026-12-20", "hector.tenor@example.com", "late", "Avisare si puedo llegar antes."]
   ];

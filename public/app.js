@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260615-11"
+  buildVersion: "20260618-1"
 };
 
 const statusLabels = {
@@ -203,7 +203,7 @@ function monthGrid() {
 
 function eventCard(event) {
   const attendance = findAttendance(event.id);
-  const status = attendance?.status || "coming";
+  const status = attendance?.status || "";
   return `
     <article class="event">
       <div class="datebox">
@@ -229,13 +229,14 @@ function eventCard(event) {
               )
               .join("")}
           </div>
+          ${status ? "" : '<p class="attendance-state">Sin respuesta</p>'}
           ${
-            status === "coming"
-              ? ""
-              : `<div class="note-row">
-            <input value="${escapeAttr(attendance?.note || "")}" placeholder="Comentario opcional" />
-            <button class="button secondary" type="button" data-save-note>Guardar</button>
-          </div>`
+            status === "late" || status === "absent"
+              ? `<div class="note-row">
+                  <input value="${escapeAttr(attendance?.note || "")}" placeholder="Comentario opcional" />
+                  <button class="button secondary" type="button" data-save-note>Guardar</button>
+                </div>`
+              : ""
           }
         </div>
       </div>
@@ -402,8 +403,11 @@ function adminView() {
 
 function adminEventSummary(event) {
   const rows = state.admin.allAttendance.filter((item) => item.eventId === event.id);
+  const coming = rows.filter((item) => item.status === "coming");
   const absent = rows.filter((item) => item.status === "absent");
   const late = rows.filter((item) => item.status === "late");
+  const answeredEmails = new Set(rows.map((item) => item.email));
+  const noResponse = singerProfiles().filter((profile) => !answeredEmails.has(profile.email));
   return `
     <article class="summary-event">
       <h3>${escapeHtml(event.title)} · ${formatDate(event.date)}</h3>
@@ -421,13 +425,23 @@ function adminEventSummary(event) {
           <button class="button danger" type="button" data-event-delete="${escapeAttr(event.id)}">Borrar evento</button>
         </div>
       </form>
+      <div class="summary-columns summary-columns-primary">
+        <div class="summary-box summary-box-coming">
+          ${summaryTitle("Asistirán", coming)}
+          ${groupedPeople(coming)}
+        </div>
+        <div class="summary-box summary-box-pending">
+          ${summaryTitle("Sin respuesta", noResponse)}
+          ${groupedPeople(noResponse)}
+        </div>
+      </div>
       <div class="summary-columns">
-        <div class="summary-box">
-          <strong>No asistirán</strong>
+        <div class="summary-box summary-box-absent">
+          ${summaryTitle("No asistirán", absent)}
           ${groupedPeople(absent)}
         </div>
-        <div class="summary-box">
-          <strong>Llegarán tarde</strong>
+        <div class="summary-box summary-box-late">
+          ${summaryTitle("Llegarán tarde", late)}
           ${groupedPeople(late)}
         </div>
       </div>
@@ -451,6 +465,10 @@ function memberSummary() {
       return `<p><strong>${statusLabels[item.status]}</strong><br /><span class="muted">${escapeHtml(event?.title || "")} · ${formatDate(event?.date)}</span></p>`;
     })
     .join("");
+}
+
+function singerProfiles() {
+  return state.admin.profiles.filter((profile) => profile.email !== state.data.user.email);
 }
 
 function bindView() {
@@ -766,7 +784,7 @@ function shortEventName(event) {
 }
 
 function groupedPeople(items) {
-  if (!items.length) return '<span class="person">Sin avisos</span>';
+  if (!items.length) return '<span class="person">Sin registros</span>';
   const order = ["Soprano", "Alto", "Tenor", "Bajo", "Sin cuerda"];
   const groups = Object.fromEntries(order.map((voice) => [voice, []]));
   items.forEach((item) => {
@@ -785,6 +803,10 @@ function groupedPeople(items) {
       `
     )
     .join("");
+}
+
+function summaryTitle(label, items) {
+  return `<strong>${escapeHtml(label)} <span>${items.length}</span></strong>`;
 }
 
 function normalizedVoice(voice) {

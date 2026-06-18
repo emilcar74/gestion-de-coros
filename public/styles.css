@@ -587,6 +587,13 @@ a {
   gap: 8px;
 }
 
+.attendance-state {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
 .resource {
   padding: 14px;
   border: 1px solid var(--line);
@@ -664,15 +671,46 @@ a {
   gap: 10px;
 }
 
+.summary-columns-primary {
+  margin-bottom: 10px;
+}
+
 .summary-box {
   background: var(--soft);
   border-radius: 7px;
   padding: 10px;
 }
 
+.summary-box-coming {
+  background: rgba(40, 107, 75, 0.1);
+}
+
+.summary-box-pending {
+  background: rgba(113, 107, 101, 0.12);
+}
+
+.summary-box-absent {
+  background: rgba(155, 38, 52, 0.08);
+}
+
+.summary-box-late {
+  background: rgba(184, 138, 43, 0.12);
+}
+
 .summary-box strong {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 6px;
+}
+
+.summary-box strong span {
+  border-radius: 999px;
+  background: rgba(255, 254, 250, 0.72);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 2px 7px;
 }
 
 .voice-group {
