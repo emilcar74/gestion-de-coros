@@ -729,6 +729,79 @@ a {
   font-size: 14px;
 }
 
+.choir-list {
+  display: grid;
+  gap: 14px;
+}
+
+.choir-group {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffefa;
+}
+
+.choir-group header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+}
+
+.choir-group h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.choir-group header span {
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 2px 8px;
+}
+
+.choir-members {
+  display: grid;
+}
+
+.choir-member {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 14px;
+}
+
+.choir-member + .choir-member {
+  border-top: 1px solid var(--line);
+}
+
+.choir-member strong,
+.choir-member span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choir-member span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.choir-member-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.choir-member-meta .button {
+  min-height: 34px;
+}
+
 .danger-zone {
   border: 1px solid rgba(155, 38, 52, 0.28);
   border-radius: 8px;

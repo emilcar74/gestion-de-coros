@@ -407,6 +407,26 @@ async function routeApi(req, res, url) {
     return;
   }
 
+  if (req.method === "DELETE" && url.pathname.startsWith("/api/admin/profiles/")) {
+    if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
+    const email = normalizeEmail(decodeURIComponent(url.pathname.split("/").pop()));
+    if (!email) return sendJson(res, 400, { error: "Email no válido" });
+    if (email === session.email) return sendJson(res, 400, { error: "No puedes eliminar tu propio perfil" });
+
+    const db = await readSessionDb(session);
+    const exists = db.profiles.some((profile) => profile.email === email);
+    if (!exists) return sendJson(res, 404, { error: "Perfil no encontrado" });
+
+    db.profiles = db.profiles.filter((profile) => profile.email !== email);
+    db.attendance = db.attendance.filter((item) => item.email !== email);
+    db.sessions = (db.sessions || []).filter((item) => item.email !== email);
+    db.magicLinks = (db.magicLinks || []).filter((item) => item.email !== email);
+
+    await writeSessionDb(session, db);
+    sendJson(res, 200, adminData(db));
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/admin/logo") {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const body = await readJson(req, 3 * 1024 * 1024);

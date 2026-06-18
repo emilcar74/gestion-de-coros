@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260618-2"
+  buildVersion: "20260618-3"
 };
 
 const statusLabels = {
@@ -104,6 +104,7 @@ function renderApp() {
         ${tab("resources", "Repertorio")}
         ${tab("profile", "Mis datos")}
         ${data.user.role === "admin" ? tab("admin", "Administración") : ""}
+        ${data.user.role === "admin" ? tab("choir", "Coro") : ""}
       </nav>
 
       <main id="view"></main>
@@ -124,6 +125,7 @@ function renderView() {
   if (state.screen === "resources") view.innerHTML = resourcesView();
   else if (state.screen === "profile") view.innerHTML = profileView();
   else if (state.screen === "admin") view.innerHTML = adminView();
+  else if (state.screen === "choir") view.innerHTML = choirView();
   else view.innerHTML = calendarView();
   syncTabs();
   bindView();
@@ -454,6 +456,54 @@ function adminEventSummary(event) {
   `;
 }
 
+function choirView() {
+  if (!state.admin) return empty("Cargando listado del coro.");
+  return `
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Coro</h2>
+          <p>Gestiona cantantes registrados en la zona privada.</p>
+        </div>
+      </div>
+      <div class="panel-body choir-list">
+        ${groupedProfiles().map(choirVoiceGroup).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function choirVoiceGroup(group) {
+  return `
+    <article class="choir-group">
+      <header>
+        <h3>${escapeHtml(group.voice)}</h3>
+        <span>${group.profiles.length}</span>
+      </header>
+      <div class="choir-members">
+        ${group.profiles.map(choirMemberRow).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function choirMemberRow(profile) {
+  const attendanceCount = state.admin.allAttendance.filter((item) => item.email === profile.email).length;
+  const isCurrentUser = profile.email === state.data.user.email;
+  return `
+    <div class="choir-member">
+      <div>
+        <strong>${escapeHtml(profile.name || "Sin nombre")}</strong>
+        <span>${escapeHtml(profile.email)}</span>
+      </div>
+      <div class="choir-member-meta">
+        <span>${attendanceCount} respuestas</span>
+        <button class="button danger" type="button" data-profile-delete="${escapeAttr(profile.email)}" ${isCurrentUser ? "disabled" : ""}>Eliminar</button>
+      </div>
+    </div>
+  `;
+}
+
 function personLine(item) {
   const profile = state.admin.profiles.find((profileItem) => profileItem.email === item.email);
   const name = profile?.name || item.email;
@@ -474,6 +524,24 @@ function memberSummary() {
 
 function singerProfiles() {
   return state.admin.profiles.filter((profile) => profile.email !== state.data.user.email);
+}
+
+function groupedProfiles() {
+  const order = ["Soprano", "Alto", "Tenor", "Bajo", "Sin cuerda"];
+  const groups = Object.fromEntries(order.map((voice) => [voice, []]));
+  state.admin.profiles.forEach((profile) => {
+    const voice = normalizedVoice(profile.voice) || "Sin cuerda";
+    if (!groups[voice]) groups[voice] = [];
+    groups[voice].push(profile);
+  });
+  return order
+    .filter((voice) => groups[voice].length)
+    .map((voice) => ({
+      voice,
+      profiles: groups[voice].sort((a, b) =>
+        (a.name || a.email).localeCompare(b.name || b.email, "es")
+      )
+    }));
 }
 
 function bindView() {
@@ -588,6 +656,23 @@ function bindView() {
         await api(`/api/admin/events/${button.dataset.eventDelete}`, { method: "DELETE" });
         await refreshAdmin();
         showToast("Evento borrado.");
+      });
+    });
+  });
+
+  document.querySelectorAll("[data-profile-delete]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const email = button.dataset.profileDelete;
+      const confirmed = window.confirm(
+        `¿Quieres eliminar el perfil ${email}? También se borrarán sus respuestas y sesiones.`
+      );
+      if (!confirmed) return;
+      await runAction(async () => {
+        await api(`/api/admin/profiles/${encodeURIComponent(email)}`, { method: "DELETE" });
+        await refreshAdmin();
+        state.screen = "choir";
+        renderApp();
+        showToast("Perfil eliminado.");
       });
     });
   });
