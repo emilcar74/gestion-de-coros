@@ -713,14 +713,23 @@ function demoDbForSession(session) {
 function buildDemoDb() {
   const programId = "demo-programa-otono";
   const profiles = [
-    { email: demoEmail, name: "Demo Fecorem", voice: "Soprano", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: demoEmail, name: "Demo Fecorem", voice: "", createdAt: "2026-06-15T00:00:00.000Z" },
     { email: "ana.soprano@example.com", name: "Ana Valverde", voice: "Soprano", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "ines.soprano@example.com", name: "Ines Duarte", voice: "Soprano", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "marta.soprano@example.com", name: "Marta Alcazar", voice: "Soprano", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "clara.soprano@example.com", name: "Clara Roig", voice: "Soprano", createdAt: "2026-06-15T00:00:00.000Z" },
     { email: "lucia.alto@example.com", name: "Lucia Serrano", voice: "Alto", createdAt: "2026-06-15T00:00:00.000Z" },
     { email: "marina.alto@example.com", name: "Marina Rios", voice: "Alto", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "elena.alto@example.com", name: "Elena Casas", voice: "Alto", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "beatriz.alto@example.com", name: "Beatriz Lozano", voice: "Alto", createdAt: "2026-06-15T00:00:00.000Z" },
     { email: "pablo.tenor@example.com", name: "Pablo Navas", voice: "Tenor", createdAt: "2026-06-15T00:00:00.000Z" },
     { email: "hector.tenor@example.com", name: "Hector Molina", voice: "Tenor", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "alvaro.tenor@example.com", name: "Alvaro Sanz", voice: "Tenor", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "sergio.tenor@example.com", name: "Sergio Ferrer", voice: "Tenor", createdAt: "2026-06-15T00:00:00.000Z" },
     { email: "carlos.bajo@example.com", name: "Carlos Beltran", voice: "Bajo", createdAt: "2026-06-15T00:00:00.000Z" },
-    { email: "ines.soprano@example.com", name: "Ines Duarte", voice: "Soprano", createdAt: "2026-06-15T00:00:00.000Z" }
+    { email: "ramon.bajo@example.com", name: "Ramon Vidal", voice: "Bajo", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "jorge.bajo@example.com", name: "Jorge Mena", voice: "Bajo", createdAt: "2026-06-15T00:00:00.000Z" },
+    { email: "manuel.bajo@example.com", name: "Manuel Pardo", voice: "Bajo", createdAt: "2026-06-15T00:00:00.000Z" }
   ];
   const events = [
     demoEvent(programId, "ensayo-2026-09-03", "Ensayo de lectura", "ensayo", "2026-09-03", "19:30", "Centro cultural", "Lectura general del programa."),
@@ -782,7 +791,7 @@ function buildDemoDb() {
       }
     ],
     profiles,
-    attendance: demoAttendance(events),
+    attendance: demoAttendance(events, profiles),
     settings: {},
     magicLinks: [],
     sessions: []
@@ -793,45 +802,52 @@ function demoEvent(programId, id, title, type, date, time, location, notes) {
   return { id, programId, title, type, date, time, location, notes, createdAt: "2026-06-15T00:00:00.000Z" };
 }
 
-function demoAttendance(events) {
-  const samples = [
-    ["ensayo-2026-09-03", "ana.soprano@example.com", "coming", ""],
-    ["ensayo-2026-09-03", "lucia.alto@example.com", "coming", ""],
-    ["ensayo-2026-09-03", "pablo.tenor@example.com", "coming", ""],
-    ["ensayo-2026-09-10", "lucia.alto@example.com", "late", "Salgo tarde del trabajo."],
-    ["ensayo-2026-09-10", "carlos.bajo@example.com", "coming", ""],
-    ["ensayo-2026-09-17", "pablo.tenor@example.com", "absent", "Viaje familiar."],
-    ["ensayo-2026-09-17", "ines.soprano@example.com", "coming", ""],
-    ["ensayo-2026-09-24", "ana.soprano@example.com", "late", "Llegare unos 20 minutos tarde."],
-    ["concierto-2026-10-16", "marina.alto@example.com", "absent", "Compromiso profesional."],
-    ["concierto-2026-10-16", "hector.tenor@example.com", "coming", ""],
-    ["concierto-2026-10-16", "carlos.bajo@example.com", "coming", ""],
-    ["ensayo-2026-10-22", "carlos.bajo@example.com", "late", "Clase hasta las 19:45."],
-    ["ensayo-2026-11-05", "ines.soprano@example.com", "absent", "No estare en la ciudad."],
-    ["ensayo-2026-11-05", "ana.soprano@example.com", "coming", ""],
-    ["ensayo-2026-11-05", "hector.tenor@example.com", "coming", ""],
-    ["ensayo-2026-11-12", "hector.tenor@example.com", "late", "Llego desde otra reunion."],
-    ["concierto-2026-11-21", "lucia.alto@example.com", "late", "Llegare justo a la convocatoria."],
-    ["concierto-2026-11-21", "marina.alto@example.com", "coming", ""],
-    ["concierto-2026-11-21", "carlos.bajo@example.com", "coming", ""],
-    ["ensayo-2026-11-26", "pablo.tenor@example.com", "late", "Trafico previsto."],
-    ["ensayo-2026-12-03", "ana.soprano@example.com", "absent", "Guardia medica."],
-    ["ensayo-2026-12-10", "marina.alto@example.com", "late", "Llegare a las 20:00."],
-    ["ensayo-2026-12-10", "lucia.alto@example.com", "coming", ""],
-    ["concierto-2026-12-13", "carlos.bajo@example.com", "absent", "Baja temporal."],
-    ["concierto-2026-12-20", "hector.tenor@example.com", "late", "Avisare si puedo llegar antes."]
-  ];
-  const eventIds = new Set(events.map((event) => event.id));
-  return samples
-    .filter(([eventId]) => eventIds.has(eventId))
-    .map(([eventId, email, status, note], index) => ({
-      id: `demo-asistencia-${index + 1}`,
-      eventId,
-      email,
-      status,
-      note,
-      updatedAt: "2026-06-15T00:00:00.000Z"
-    }));
+function demoAttendance(events, profiles) {
+  const singers = profiles.filter((profile) => profile.email !== demoEmail);
+  const notes = {
+    late: [
+      "Salgo tarde del trabajo.",
+      "Llegare unos 20 minutos tarde.",
+      "Clase hasta las 19:45.",
+      "Llego desde otra reunion.",
+      "Avisare si puedo llegar antes."
+    ],
+    absent: [
+      "Viaje familiar.",
+      "Compromiso profesional.",
+      "No estare en la ciudad.",
+      "Guardia medica.",
+      "Baja temporal."
+    ]
+  };
+  const rows = [];
+  events.forEach((event, eventIndex) => {
+    singers.forEach((profile, singerIndex) => {
+      const mark = (eventIndex * 5 + singerIndex * 3) % 13;
+      if (mark === 0 || mark === 6 || (eventIndex > 11 && mark === 10)) return;
+      const status =
+        mark === 2 || mark === 9
+          ? "late"
+          : mark === 4 || (event.type === "concierto" && mark === 8)
+            ? "absent"
+            : "coming";
+      const note =
+        status === "late"
+          ? notes.late[(eventIndex + singerIndex) % notes.late.length]
+          : status === "absent"
+            ? notes.absent[(eventIndex + singerIndex) % notes.absent.length]
+            : "";
+      rows.push({
+        id: `demo-asistencia-${rows.length + 1}`,
+        eventId: event.id,
+        email: profile.email,
+        status,
+        note,
+        updatedAt: "2026-06-15T00:00:00.000Z"
+      });
+    });
+  });
+  return rows;
 }
 
 async function ensureDb() {
