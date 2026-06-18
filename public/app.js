@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260618-1"
+  buildVersion: "20260618-2"
 };
 
 const statusLabels = {
@@ -271,6 +271,10 @@ function resourcesView() {
             <h3><a href="${escapeAttr(program.scoreFolderUrl || "")}" target="_blank" rel="noreferrer">Carpeta de partituras</a></h3>
           </article>
           <article class="resource">
+            ${resourceHeading("Instrucciones de ensayo", "Indicaciones para preparar el repertorio")}
+            ${program.rehearsalInstructions ? `<div class="works-list">${escapeHtml(program.rehearsalInstructions).replaceAll("\n", "<br />")}</div>` : empty("Todavía no hay instrucciones de ensayo.")}
+          </article>
+          <article class="resource">
             ${resourceHeading("Listas de reproducción", "Apple Music, Spotify y YouTube")}
             ${playlistLinks.length ? playlistLinks.map(([label, url]) => `<p><a href="${escapeAttr(url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a></p>`).join("") : empty("Todavía no hay listas de reproducción.")}
           </article>
@@ -291,6 +295,7 @@ function resourcesView() {
                   <label class="field"><span>Descripción</span><textarea name="description">${escapeHtml(program.description || "")}</textarea></label>
                   <label class="field"><span>Listado de obras</span><textarea class="tall" name="works">${escapeHtml(program.works || "")}</textarea></label>
                   <label class="field"><span>Carpeta de partituras</span><input name="scoreFolderUrl" value="${escapeAttr(program.scoreFolderUrl || "")}" /></label>
+                  <label class="field"><span>Instrucciones de ensayo</span><textarea class="tall" name="rehearsalInstructions">${escapeHtml(program.rehearsalInstructions || "")}</textarea></label>
                   <label class="field"><span>Apple Music</span><input name="appleMusic" value="${escapeAttr(playlists.appleMusic || "")}" /></label>
                   <label class="field"><span>Spotify</span><input name="spotify" value="${escapeAttr(playlists.spotify || "")}" /></label>
                   <label class="field"><span>YouTube</span><input name="youtube" value="${escapeAttr(playlists.youtube || "")}" /></label>

@@ -280,6 +280,7 @@ async function routeApi(req, res, url) {
       name: cleanText(body.name, 120) || "Nuevo programa",
       description: cleanText(body.description, 500),
       works: cleanText(body.works, 5000),
+      rehearsalInstructions: cleanText(body.rehearsalInstructions, 5000),
       scoreFolderUrl: defaultScoreFolderUrl(),
       playlists: cleanPlaylists(body.playlists || body),
       active: Boolean(body.active ?? true),
@@ -301,6 +302,7 @@ async function routeApi(req, res, url) {
     program.name = cleanText(body.name, 120) || program.name;
     program.description = cleanText(body.description, 500);
     program.works = cleanText(body.works, 5000);
+    program.rehearsalInstructions = cleanText(body.rehearsalInstructions, 5000);
     program.scoreFolderUrl = cleanText(body.scoreFolderUrl, 700) || defaultScoreFolderUrl();
     program.playlists = cleanPlaylists(body);
     program.updatedAt = new Date().toISOString();
@@ -323,6 +325,7 @@ async function routeApi(req, res, url) {
         name: cleanText(body.name, 120) || "Nuevo programa",
         description: cleanText(body.description, 500),
         works: "",
+        rehearsalInstructions: "",
         scoreFolderUrl: defaultScoreFolderUrl(),
         playlists: cleanPlaylists({}),
         active: true,
@@ -729,6 +732,12 @@ function buildDemoDb() {
           "Canticum breve - L. Moreno",
           "Romance del aire claro - Popular, arr. S. Vidal",
           "Lux serena - E. Navarro"
+        ].join("\n"),
+        rehearsalInstructions: [
+          "Antes del proximo ensayo: repasar texto de Aurora de los caminos y marcar respiraciones.",
+          "Sopranos y altos: revisar compases 32-48 de Tres nanas del agua.",
+          "Tenores y bajos: llevar preparado el ostinato de Lux serena a tempo lento.",
+          "Escuchar la lista de YouTube al menos una vez siguiendo la partitura."
         ].join("\n"),
         scoreFolderUrl: "https://example.com/demo/partituras",
         playlists: {
