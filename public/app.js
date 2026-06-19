@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260619-1"
+  buildVersion: "20260619-2"
 };
 
 const statusLabels = {
@@ -68,8 +68,8 @@ function renderLogin(message = "") {
       }
       const link = result.devMagicUrl ? `<p><a href="${result.devMagicUrl}">Abrir enlace local</a></p>` : "";
       renderLogin(`${result.message}${link}`);
-    } catch {
-      renderLogin("No se pudo solicitar el enlace. Revisa la conexión e inténtalo de nuevo.");
+    } catch (error) {
+      renderLogin(error.message || "No se pudo solicitar el enlace. Revisa la conexión e inténtalo de nuevo.");
     }
   });
 }

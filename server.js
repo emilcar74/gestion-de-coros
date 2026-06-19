@@ -126,9 +126,21 @@ async function routeApi(req, res, url) {
       return sendJson(res, 200, { ok: true, message: authRequestMessage });
     }
 
+    const token = randomId();
+    const magicUrl = `${config.baseUrl}/api/auth/consume?token=${token}`;
+    const emailSent = await sendMagicLinkEmail(normalizedEmail, magicUrl);
+    const mailConfigured = Boolean(config.mailgunApiKey && config.mailgunDomain && config.mailFrom);
+
+    if (!emailSent && mailConfigured) {
+      await auditLog(req, "auth_request_email_failed", { email: normalizedEmail });
+      return sendJson(res, 502, {
+        ok: false,
+        error: "No se pudo enviar el email de acceso. Mailgun no respondió correctamente."
+      });
+    }
+
     const db = await readDb();
     upsertProfile(db, normalizedEmail, verification.name);
-    const token = randomId();
     db.magicLinks = db.magicLinks.filter((link) => link.email !== normalizedEmail);
     db.magicLinks.push({
       email: normalizedEmail,
@@ -139,16 +151,11 @@ async function routeApi(req, res, url) {
     await writeDb(db);
     await auditLog(req, "auth_request_allowed", { email: normalizedEmail });
 
-    const magicUrl = `${config.baseUrl}/api/auth/consume?token=${token}`;
-    const emailSent = await sendMagicLinkEmail(normalizedEmail, magicUrl);
-    const mailConfigured = Boolean(config.mailgunApiKey && config.mailgunDomain && config.mailFrom);
     if (config.devAuth || !mailConfigured) {
       console.log(`Enlace mágico para ${normalizedEmail}: ${magicUrl}`);
     }
     let message = authRequestMessage;
-    if (!emailSent && mailConfigured) {
-      message = "No se pudo enviar el email de acceso. Revisa la configuración de Mailgun.";
-    } else if (!emailSent && config.devAuth) {
+    if (!emailSent && config.devAuth) {
       message =
         "Si el email está autorizado, se ha generado un enlace de acceso. En desarrollo aparece en la terminal.";
     }
@@ -539,25 +546,38 @@ async function sendMagicLinkEmail(email, magicUrl) {
     `Entra en ${config.appName}: ${magicUrl}\n\nEste enlace caduca en 15 minutos.`
   );
 
-  const response = await fetch(
-    `${config.mailgunBaseUrl}/v3/${encodeURIComponent(config.mailgunDomain)}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(`api:${config.mailgunApiKey}`).toString("base64")}`
-      },
-      body: form
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(
+        `${config.mailgunBaseUrl}/v3/${encodeURIComponent(config.mailgunDomain)}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${Buffer.from(`api:${config.mailgunApiKey}`).toString("base64")}`
+          },
+          body: form
+        }
+      );
+    } catch (error) {
+      console.error(`No se pudo conectar con Mailgun, intento ${attempt}/3: ${error.message}`);
+      if (attempt < 3) await delay(600 * attempt);
+      continue;
     }
-  );
 
-  if (!response.ok) {
+    if (response.ok) return true;
+
     const body = await response.text();
-    console.error(`No se pudo enviar el email (${response.status}): ${body}`);
-    if (!config.devAuth) throw new Error("No se pudo enviar el email de acceso");
-    return false;
+    console.error(`No se pudo enviar el email, intento ${attempt}/3 (${response.status}): ${body}`);
+    if (response.status < 500) return false;
+    if (attempt < 3) await delay(600 * attempt);
   }
 
-  return true;
+  return false;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function createGhostAdminJwt(adminKey) {
