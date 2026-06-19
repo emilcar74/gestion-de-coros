@@ -28,6 +28,8 @@ const config = {
   accessLabel: process.env.GHOST_ACCESS_LABEL || "cantante",
   adminEmails: splitEmails(process.env.ADMIN_EMAILS || ""),
   devAuth: String(process.env.DEV_AUTH || "").toLowerCase() === "true",
+  emailProvider: String(process.env.EMAIL_PROVIDER || "").toLowerCase(),
+  resendApiKey: process.env.RESEND_API_KEY || "",
   mailgunApiKey: process.env.MAILGUN_API_KEY || "",
   mailgunDomain: process.env.MAILGUN_DOMAIN || "",
   mailgunBaseUrl: cleanUrl(process.env.MAILGUN_BASE_URL || "https://api.mailgun.net"),
@@ -128,14 +130,23 @@ async function routeApi(req, res, url) {
 
     const token = randomId();
     const magicUrl = `${config.baseUrl}/api/auth/consume?token=${token}`;
+    const mailConfigured = isEmailConfigured();
+
+    if (!mailConfigured && !config.devAuth) {
+      await auditLog(req, "auth_request_email_not_configured", { email: normalizedEmail });
+      return sendJson(res, 500, {
+        ok: false,
+        error: "No hay proveedor de email configurado para enviar enlaces de acceso."
+      });
+    }
+
     const emailSent = await sendMagicLinkEmail(normalizedEmail, magicUrl);
-    const mailConfigured = Boolean(config.mailgunApiKey && config.mailgunDomain && config.mailFrom);
 
     if (!emailSent && mailConfigured) {
       await auditLog(req, "auth_request_email_failed", { email: normalizedEmail });
       return sendJson(res, 502, {
         ok: false,
-        error: "No se pudo enviar el email de acceso. Mailgun no respondió correctamente."
+        error: "No se pudo enviar el email de acceso. El proveedor de email no respondió correctamente."
       });
     }
 
@@ -524,27 +535,72 @@ async function verifyGhostAccess(email) {
 }
 
 async function sendMagicLinkEmail(email, magicUrl) {
-  if (!config.mailgunApiKey || !config.mailgunDomain || !config.mailFrom) return false;
+  const provider = selectedEmailProvider();
+  if (provider === "resend") return sendMagicLinkWithResend(email, magicUrl);
+  if (provider === "mailgun") return sendMagicLinkWithMailgun(email, magicUrl);
+  return false;
+}
 
-  const form = new FormData();
-  form.set("from", config.mailFrom);
-  form.set("to", email);
-  form.set("subject", `Acceso a ${config.appName}`);
-  form.set(
-    "html",
-    `
+function magicLinkEmail(email, magicUrl) {
+  return {
+    from: config.mailFrom,
+    to: email,
+    subject: `Acceso a ${config.appName}`,
+    html: `
       <div style="font-family: Georgia, serif; color: #25211e; line-height: 1.5">
         <h1 style="font-size: 24px">${escapeHtml(config.appName)}</h1>
         <p>Usa este enlace para entrar en la zona privada del coro:</p>
         <p><a href="${escapeHtml(magicUrl)}" style="color: #7f1d2d">Entrar en la zona privada</a></p>
         <p style="color: #716b65">El enlace caduca en 15 minutos.</p>
       </div>
-    `
-  );
-  form.set(
-    "text",
-    `Entra en ${config.appName}: ${magicUrl}\n\nEste enlace caduca en 15 minutos.`
-  );
+    `,
+    text: `Entra en ${config.appName}: ${magicUrl}\n\nEste enlace caduca en 15 minutos.`
+  };
+}
+
+async function sendMagicLinkWithResend(email, magicUrl) {
+  if (!config.resendApiKey || !config.mailFrom) return false;
+
+  const message = magicLinkEmail(email, magicUrl);
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    let response;
+    try {
+      response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.resendApiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(message)
+      });
+    } catch (error) {
+      console.error(`No se pudo conectar con Resend, intento ${attempt}/3: ${error.message}`);
+      if (attempt < 3) await delay(600 * attempt);
+      continue;
+    }
+
+    if (response.ok) return true;
+
+    const body = await response.text();
+    console.error(`No se pudo enviar el email con Resend, intento ${attempt}/3 (${response.status}): ${body}`);
+    if (response.status < 500) return false;
+    if (attempt < 3) await delay(600 * attempt);
+  }
+
+  return false;
+}
+
+async function sendMagicLinkWithMailgun(email, magicUrl) {
+  if (!config.mailgunApiKey || !config.mailgunDomain || !config.mailFrom) return false;
+
+  const message = magicLinkEmail(email, magicUrl);
+  const form = new FormData();
+  form.set("from", message.from);
+  form.set("to", message.to);
+  form.set("subject", message.subject);
+  form.set("html", message.html);
+  form.set("text", message.text);
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     let response;
@@ -573,6 +629,20 @@ async function sendMagicLinkEmail(email, magicUrl) {
     if (attempt < 3) await delay(600 * attempt);
   }
 
+  return false;
+}
+
+function selectedEmailProvider() {
+  if (config.emailProvider) return config.emailProvider;
+  if (config.resendApiKey) return "resend";
+  if (config.mailgunApiKey && config.mailgunDomain) return "mailgun";
+  return "";
+}
+
+function isEmailConfigured() {
+  const provider = selectedEmailProvider();
+  if (provider === "resend") return Boolean(config.resendApiKey && config.mailFrom);
+  if (provider === "mailgun") return Boolean(config.mailgunApiKey && config.mailgunDomain && config.mailFrom);
   return false;
 }
 

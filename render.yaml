@@ -23,10 +23,8 @@ services:
         value: https://your-ghost-site.example
       - key: GHOST_ACCESS_LABEL
         value: cantante
-      - key: MAILGUN_DOMAIN
-        value: mg.example.com
-      - key: MAILGUN_BASE_URL
-        value: https://api.eu.mailgun.net
+      - key: EMAIL_PROVIDER
+        value: resend
       - key: MAIL_FROM
         value: Choir Private Area <access@example.com>
       - key: ADMIN_EMAILS
@@ -37,5 +35,5 @@ services:
         sync: false
       - key: GHOST_ADMIN_API_KEY
         sync: false
-      - key: MAILGUN_API_KEY
+      - key: RESEND_API_KEY
         sync: false
