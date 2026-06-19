@@ -800,6 +800,34 @@ a {
   gap: 14px;
 }
 
+.score-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.score-summary-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffefa;
+  padding: 12px 14px;
+}
+
+.score-summary-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.score-summary-item strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1;
+}
+
 .choir-group {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -938,7 +966,8 @@ a {
 
   .grid,
   .form-grid,
-  .summary-columns {
+  .summary-columns,
+  .score-summary {
     grid-template-columns: 1fr;
   }
 

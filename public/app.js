@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260619-3"
+  buildVersion: "20260619-4"
 };
 
 const statusLabels = {
@@ -473,9 +473,38 @@ function choirView() {
         </div>
       </div>
       <div class="panel-body choir-list">
+        ${scoreFormatSummary()}
         ${groupedProfiles().map(choirVoiceGroup).join("")}
       </div>
     </section>
+  `;
+}
+
+function scoreFormatSummary() {
+  const profiles = singerProfiles();
+  const counts = profiles.reduce(
+    (totals, profile) => {
+      const format = normalizedScoreFormat(profile.scoreFormat);
+      totals[format || "Sin partituras"] += 1;
+      return totals;
+    },
+    { Papel: 0, Digital: 0, "Sin partituras": 0 }
+  );
+  return `
+    <div class="score-summary" aria-label="Resumen de preferencias de partituras">
+      ${scoreSummaryItem("Papel", counts.Papel)}
+      ${scoreSummaryItem("Digital", counts.Digital)}
+      ${scoreSummaryItem("Sin partituras", counts["Sin partituras"])}
+    </div>
+  `;
+}
+
+function scoreSummaryItem(label, count) {
+  return `
+    <div class="score-summary-item">
+      <span>${escapeHtml(label)}</span>
+      <strong>${count}</strong>
+    </div>
   `;
 }
 
