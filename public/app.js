@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260618-3"
+  buildVersion: "20260619-1"
 };
 
 const statusLabels = {
@@ -221,7 +221,7 @@ function eventCard(event) {
           <span>${formatDate(event.date)} · ${escapeHtml(event.time || "")}</span>
           <span>${escapeHtml(event.location || "")}</span>
         </div>
-        ${event.notes ? `<p class="muted">${escapeHtml(event.notes)}</p>` : ""}
+        ${event.notes ? `<div class="markdown event-notes">${renderMarkdown(event.notes)}</div>` : ""}
         <div class="attendance" data-event="${event.id}">
           <div class="segmented">
             ${Object.entries(statusLabels)
@@ -266,7 +266,7 @@ function resourcesView() {
         <div class="panel-body resource-list">
           <article class="resource">
             ${resourceHeading("Obras", "Listado manual del programa")}
-            ${program.works ? `<div class="works-list">${escapeHtml(program.works).replaceAll("\n", "<br />")}</div>` : empty("Todavía no hay obras escritas.")}
+            ${program.works ? `<div class="markdown works-list">${renderMarkdown(program.works)}</div>` : empty("Todavía no hay obras escritas.")}
           </article>
           <article class="resource">
             ${resourceHeading("Partituras", "Carpeta compartida")}
@@ -274,7 +274,7 @@ function resourcesView() {
           </article>
           <article class="resource">
             ${resourceHeading("Instrucciones de ensayo", "Indicaciones para preparar el repertorio")}
-            ${program.rehearsalInstructions ? `<div class="works-list">${escapeHtml(program.rehearsalInstructions).replaceAll("\n", "<br />")}</div>` : empty("Todavía no hay instrucciones de ensayo.")}
+            ${program.rehearsalInstructions ? `<div class="markdown works-list">${renderMarkdown(program.rehearsalInstructions)}</div>` : empty("Todavía no hay instrucciones de ensayo.")}
           </article>
           <article class="resource">
             ${resourceHeading("Listas de reproducción", "Apple Music, Spotify y YouTube")}
@@ -923,6 +923,110 @@ function formatDate(date) {
 
 function empty(text) {
   return `<p class="muted">${escapeHtml(text)}</p>`;
+}
+
+function renderMarkdown(value) {
+  const lines = String(value || "").replaceAll("\r\n", "\n").split("\n");
+  const html = [];
+  let paragraph = [];
+  let listType = "";
+  let quote = [];
+
+  const closeParagraph = () => {
+    if (!paragraph.length) return;
+    html.push(`<p>${paragraph.map(renderMarkdownInline).join("<br />")}</p>`);
+    paragraph = [];
+  };
+
+  const closeList = () => {
+    if (!listType) return;
+    html.push(`</${listType}>`);
+    listType = "";
+  };
+
+  const closeQuote = () => {
+    if (!quote.length) return;
+    html.push(`<blockquote>${quote.map(renderMarkdownInline).join("<br />")}</blockquote>`);
+    quote = [];
+  };
+
+  const closeBlocks = () => {
+    closeParagraph();
+    closeList();
+    closeQuote();
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      closeBlocks();
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      closeBlocks();
+      const level = heading[1].length + 2;
+      html.push(`<h${level}>${renderMarkdownInline(heading[2])}</h${level}>`);
+      continue;
+    }
+
+    const unordered = trimmed.match(/^[-*]\s+(.+)$/);
+    const ordered = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (unordered || ordered) {
+      closeParagraph();
+      closeQuote();
+      const type = unordered ? "ul" : "ol";
+      if (listType && listType !== type) closeList();
+      if (!listType) {
+        listType = type;
+        html.push(`<${type}>`);
+      }
+      html.push(`<li>${renderMarkdownInline((unordered || ordered)[1])}</li>`);
+      continue;
+    }
+
+    const quoteLine = trimmed.match(/^>\s?(.+)$/);
+    if (quoteLine) {
+      closeParagraph();
+      closeList();
+      quote.push(quoteLine[1]);
+      continue;
+    }
+
+    closeList();
+    closeQuote();
+    paragraph.push(line);
+  }
+
+  closeBlocks();
+  return html.join("");
+}
+
+function renderMarkdownInline(value) {
+  const codeSpans = [];
+  let text = String(value || "").replace(/`([^`]+)`/g, (_, code) => {
+    const token = `\u0000code-${codeSpans.length}\u0000`;
+    codeSpans.push(`<code>${escapeHtml(code)}</code>`);
+    return token;
+  });
+
+  text = escapeHtml(text);
+  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|mailto:[^)\s]+)\)/g, (_, label, url) => {
+    const href = url.replaceAll("&amp;", "&");
+    return `<a href="${escapeAttr(href)}" target="_blank" rel="noreferrer">${label}</a>`;
+  });
+  text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  text = text.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+  text = text.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+  text = text.replace(/(^|[^_])_([^_]+)_/g, "$1<em>$2</em>");
+
+  codeSpans.forEach((code, index) => {
+    text = text.replaceAll(`\u0000code-${index}\u0000`, code);
+  });
+
+  return text;
 }
 
 function escapeHtml(value) {
