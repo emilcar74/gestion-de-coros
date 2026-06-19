@@ -241,6 +241,7 @@ async function routeApi(req, res, url) {
     const profile = upsertProfile(db, session.email);
     profile.name = cleanText(body.name, 90);
     profile.voice = cleanText(body.voice, 40);
+    profile.scoreFormat = cleanScoreFormat(body.scoreFormat);
     await writeSessionDb(session, db);
     sendJson(res, 200, { profile });
     return;
@@ -640,6 +641,7 @@ function upsertProfile(db, email, name = "") {
       email,
       name: name || "",
       voice: "",
+      scoreFormat: "",
       createdAt: new Date().toISOString()
     };
     db.profiles.push(profile);
@@ -647,6 +649,11 @@ function upsertProfile(db, email, name = "") {
     profile.name = name;
   }
   return profile;
+}
+
+function cleanScoreFormat(value) {
+  const format = cleanText(value, 20);
+  return ["Papel", "Digital"].includes(format) ? format : "";
 }
 
 async function getSession(req) {
@@ -763,6 +770,9 @@ function buildDemoDb() {
     { email: "jorge.bajo@example.com", name: "Jorge Mena", voice: "Bajo", createdAt: "2026-06-15T00:00:00.000Z" },
     { email: "manuel.bajo@example.com", name: "Manuel Pardo", voice: "Bajo", createdAt: "2026-06-15T00:00:00.000Z" }
   ];
+  profiles.forEach((profile, index) => {
+    profile.scoreFormat = profile.email === demoEmail ? "" : index % 3 === 0 ? "Papel" : "Digital";
+  });
   const events = [
     demoEvent(programId, "ensayo-2026-09-03", "Ensayo de lectura", "ensayo", "2026-09-03", "19:30", "Centro cultural", "Lectura general del programa."),
     demoEvent(programId, "ensayo-2026-09-10", "Ensayo seccional", "ensayo", "2026-09-10", "19:30", "Aula de musica", "Trabajo por cuerdas."),

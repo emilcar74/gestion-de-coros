@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260619-2"
+  buildVersion: "20260619-3"
 };
 
 const statusLabels = {
@@ -343,6 +343,12 @@ function profileView() {
               ${["", "Soprano", "Alto", "Tenor", "Bajo"].map((voice) => option(voice, normalizedVoice(profile.voice))).join("")}
             </select>
           </label>
+          <label class="field">
+            <span>Partituras</span>
+            <select name="scoreFormat">
+              ${["", "Papel", "Digital"].map((format) => option(format, normalizedScoreFormat(profile.scoreFormat))).join("")}
+            </select>
+          </label>
           <div class="wide">
             <button class="button" type="submit">Guardar mis datos</button>
           </div>
@@ -497,6 +503,7 @@ function choirMemberRow(profile) {
         <span>${escapeHtml(profile.email)}</span>
       </div>
       <div class="choir-member-meta">
+        <span>${escapeHtml(normalizedScoreFormat(profile.scoreFormat) || "Sin partituras")}</span>
         <span>${attendanceCount} respuestas</span>
         <button class="button danger" type="button" data-profile-delete="${escapeAttr(profile.email)}" ${isCurrentUser ? "disabled" : ""}>Eliminar</button>
       </div>
@@ -901,6 +908,10 @@ function summaryTitle(label, items) {
 
 function normalizedVoice(voice) {
   return voice === "Contralto" ? "Alto" : voice || "";
+}
+
+function normalizedScoreFormat(format) {
+  return ["Papel", "Digital"].includes(format) ? format : "";
 }
 
 function dayNumber(date) {
