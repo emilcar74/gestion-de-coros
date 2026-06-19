@@ -73,11 +73,7 @@ member can only see and edit their own attendance.
 
 Do not weaken this when replacing Ghost.
 
-## Implementations Included
-
-This repository contains two deployment paths.
-
-### Node Version
+## Implementation
 
 Files:
 
@@ -98,27 +94,6 @@ Production-style local mode:
 ```bash
 DEV_AUTH=false npm run dev
 ```
-
-### PHP / SiteGround Version
-
-Files:
-
-- `deploy/siteground/api.php`
-- `deploy/siteground/.htaccess`
-- `deploy/siteground/config.example.php`
-- `deploy/siteground/public/`
-- `deploy/siteground/data/db.json`
-
-For SiteGround or similar Apache/PHP hosting:
-
-1. Create a subdomain, for example `privado.example.com`.
-2. Upload the contents of `deploy/siteground/` to the subdomain root.
-3. Copy `config.example.php` to `config.php`.
-4. Fill in real Ghost, email provider, admin, and app settings.
-5. Ensure `data/db.json` is writable by PHP.
-6. Visit `/api/health`; it should return `{"ok":true}`.
-
-Do not commit `config.php`.
 
 ## Environment Variables For Node
 
@@ -178,7 +153,6 @@ Replace `public/logo.jpg` with your own choir logo.
 ## Security Notes
 
 - Never commit `.env`.
-- Never commit `deploy/siteground/config.php`.
 - Keep Ghost Admin API keys server-side only.
 - Keep Resend keys server-side only.
 - Use HTTPS in production.
