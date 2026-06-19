@@ -135,28 +135,11 @@ GHOST_ACCESS_LABEL=cantante
 ADMIN_EMAILS=director@example.com
 DEV_AUTH=false
 
-EMAIL_PROVIDER=resend
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 MAIL_FROM="Choir Private Area <access@example.com>"
 ```
 
-Resend is the recommended default because it is simple to configure and has a generous free tier for small choirs.
-
-Mailgun is also supported:
-
-```bash
-EMAIL_PROVIDER=mailgun
-MAILGUN_API_KEY=key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-MAILGUN_DOMAIN=mg.example.com
-MAILGUN_BASE_URL=https://api.mailgun.net
-MAIL_FROM="Choir Private Area <access@example.com>"
-```
-
-For Mailgun EU:
-
-```bash
-MAILGUN_BASE_URL=https://api.eu.mailgun.net
-```
+Resend is used for magic-link delivery because it is simple to configure and has a generous free tier for small choirs.
 
 ## Data Storage
 
@@ -197,7 +180,7 @@ Replace `public/logo.jpg` with your own choir logo.
 - Never commit `.env`.
 - Never commit `deploy/siteground/config.php`.
 - Keep Ghost Admin API keys server-side only.
-- Keep Resend or Mailgun keys server-side only.
+- Keep Resend keys server-side only.
 - Use HTTPS in production.
 - Use a long random `APP_SECRET`.
 

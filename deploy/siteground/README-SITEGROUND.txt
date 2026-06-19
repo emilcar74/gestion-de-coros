@@ -26,7 +26,7 @@ Instructions:
    - app_secret
    - Ghost URL/API key/label, or replace the auth code
    - admin emails
-   - Mailgun settings
+   - Resend settings
 
 6. Check permissions:
    - data/db.json must be writable by PHP.

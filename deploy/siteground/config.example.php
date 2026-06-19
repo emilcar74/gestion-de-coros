@@ -10,8 +10,6 @@ return [
 
     'admin_emails' => ['director@example.com'],
 
-    'mailgun_api_key' => 'key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    'mailgun_domain' => 'mg.example.com',
-    'mailgun_base_url' => 'https://api.mailgun.net',
+    'resend_api_key' => 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     'mail_from' => 'Choir Private Area <access@example.com>',
 ];

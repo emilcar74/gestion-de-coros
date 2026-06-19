@@ -37,7 +37,7 @@ function route($method, $path, $config, $dbPath) {
             'ok' => true,
             'message' => $sent
                 ? 'Si el email está autorizado, recibirás un enlace de acceso.'
-                : 'No se pudo enviar el email de acceso. Revisa la configuración de Mailgun.',
+                : 'No se pudo enviar el email de acceso. Revisa la configuración de Resend.',
         ]);
     }
 
@@ -255,19 +255,21 @@ function verify_access($email, $config) {
 }
 
 function send_magic_link($email, $magicUrl, $config) {
-    $url = rtrim($config['mailgun_base_url'], '/') . '/v3/' . rawurlencode($config['mailgun_domain']) . '/messages';
-    $fields = [
+    $payload = [
         'from' => $config['mail_from'],
         'to' => $email,
         'subject' => 'Access to ' . ($config['app_name'] ?? 'Choir Private Area'),
         'html' => '<h1>' . htmlspecialchars($config['app_name'] ?? 'Choir Private Area') . '</h1><p>Use this link to enter the private choir area:</p><p><a href="' . htmlspecialchars($magicUrl) . '">Enter private area</a></p><p>This link expires in 15 minutes.</p>',
         'text' => "Enter " . ($config['app_name'] ?? 'Choir Private Area') . ": $magicUrl\n\nThis link expires in 15 minutes.",
     ];
-    $ch = curl_init($url);
+    $ch = curl_init('https://api.resend.com/emails');
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $fields,
-        CURLOPT_USERPWD => 'api:' . $config['mailgun_api_key'],
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $config['resend_api_key'],
+            'Content-Type: application/json',
+        ],
         CURLOPT_RETURNTRANSFER => true,
     ]);
     curl_exec($ch);

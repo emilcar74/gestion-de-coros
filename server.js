@@ -28,11 +28,7 @@ const config = {
   accessLabel: process.env.GHOST_ACCESS_LABEL || "cantante",
   adminEmails: splitEmails(process.env.ADMIN_EMAILS || ""),
   devAuth: String(process.env.DEV_AUTH || "").toLowerCase() === "true",
-  emailProvider: String(process.env.EMAIL_PROVIDER || "").toLowerCase(),
   resendApiKey: process.env.RESEND_API_KEY || "",
-  mailgunApiKey: process.env.MAILGUN_API_KEY || "",
-  mailgunDomain: process.env.MAILGUN_DOMAIN || "",
-  mailgunBaseUrl: cleanUrl(process.env.MAILGUN_BASE_URL || "https://api.mailgun.net"),
   mailFrom: process.env.MAIL_FROM || ""
 };
 
@@ -535,10 +531,7 @@ async function verifyGhostAccess(email) {
 }
 
 async function sendMagicLinkEmail(email, magicUrl) {
-  const provider = selectedEmailProvider();
-  if (provider === "resend") return sendMagicLinkWithResend(email, magicUrl);
-  if (provider === "mailgun") return sendMagicLinkWithMailgun(email, magicUrl);
-  return false;
+  return sendMagicLinkWithResend(email, magicUrl);
 }
 
 function magicLinkEmail(email, magicUrl) {
@@ -591,59 +584,8 @@ async function sendMagicLinkWithResend(email, magicUrl) {
   return false;
 }
 
-async function sendMagicLinkWithMailgun(email, magicUrl) {
-  if (!config.mailgunApiKey || !config.mailgunDomain || !config.mailFrom) return false;
-
-  const message = magicLinkEmail(email, magicUrl);
-  const form = new FormData();
-  form.set("from", message.from);
-  form.set("to", message.to);
-  form.set("subject", message.subject);
-  form.set("html", message.html);
-  form.set("text", message.text);
-
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    let response;
-    try {
-      response = await fetch(
-        `${config.mailgunBaseUrl}/v3/${encodeURIComponent(config.mailgunDomain)}/messages`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${Buffer.from(`api:${config.mailgunApiKey}`).toString("base64")}`
-          },
-          body: form
-        }
-      );
-    } catch (error) {
-      console.error(`No se pudo conectar con Mailgun, intento ${attempt}/3: ${error.message}`);
-      if (attempt < 3) await delay(600 * attempt);
-      continue;
-    }
-
-    if (response.ok) return true;
-
-    const body = await response.text();
-    console.error(`No se pudo enviar el email, intento ${attempt}/3 (${response.status}): ${body}`);
-    if (response.status < 500) return false;
-    if (attempt < 3) await delay(600 * attempt);
-  }
-
-  return false;
-}
-
-function selectedEmailProvider() {
-  if (config.emailProvider) return config.emailProvider;
-  if (config.resendApiKey) return "resend";
-  if (config.mailgunApiKey && config.mailgunDomain) return "mailgun";
-  return "";
-}
-
 function isEmailConfigured() {
-  const provider = selectedEmailProvider();
-  if (provider === "resend") return Boolean(config.resendApiKey && config.mailFrom);
-  if (provider === "mailgun") return Boolean(config.mailgunApiKey && config.mailgunDomain && config.mailFrom);
-  return false;
+  return Boolean(config.resendApiKey && config.mailFrom);
 }
 
 function delay(ms) {

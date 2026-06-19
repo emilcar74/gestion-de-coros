@@ -23,8 +23,6 @@ services:
         value: https://your-ghost-site.example
       - key: GHOST_ACCESS_LABEL
         value: cantante
-      - key: EMAIL_PROVIDER
-        value: resend
       - key: MAIL_FROM
         value: Choir Private Area <access@example.com>
       - key: ADMIN_EMAILS
