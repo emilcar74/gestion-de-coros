@@ -626,6 +626,78 @@ a {
   font-size: 13px;
 }
 
+.playlist-links {
+  display: grid;
+  gap: 8px;
+}
+
+.playlist-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  min-height: 34px;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.playlist-link:hover span:last-child {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.playlist-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 7px;
+}
+
+.playlist-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.playlist-apple-music .playlist-icon {
+  background: #fb2d5f;
+  color: #fff;
+}
+
+.playlist-apple-music svg {
+  fill: currentColor;
+}
+
+.playlist-spotify .playlist-icon {
+  background: #1db954;
+  color: #102116;
+}
+
+.playlist-spotify circle {
+  fill: currentColor;
+}
+
+.playlist-spotify path {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-width: 1.7;
+}
+
+.playlist-youtube .playlist-icon {
+  background: #ff0033;
+  color: #fff;
+}
+
+.playlist-youtube rect {
+  fill: currentColor;
+}
+
+.playlist-youtube path {
+  fill: #fff;
+}
+
 .works-list {
   margin-top: 10px;
   line-height: 1.65;

@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260619-4"
+  buildVersion: "20260620-1"
 };
 
 const statusLabels = {
@@ -278,7 +278,7 @@ function resourcesView() {
           </article>
           <article class="resource">
             ${resourceHeading("Listas de reproducción", "Apple Music, Spotify y YouTube")}
-            ${playlistLinks.length ? playlistLinks.map(([label, url]) => `<p><a href="${escapeAttr(url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a></p>`).join("") : empty("Todavía no hay listas de reproducción.")}
+            ${playlistLinks.length ? `<div class="playlist-links">${playlistLinks.map(playlistLink).join("")}</div>` : empty("Todavía no hay listas de reproducción.")}
           </article>
         </div>
       </section>
@@ -318,6 +318,51 @@ function resourceCard(resource) {
       <h3><a href="${escapeAttr(resource.url)}" target="_blank" rel="noreferrer">${escapeHtml(resource.title)}</a></h3>
       ${resource.notes ? `<p class="muted">${escapeHtml(resource.notes)}</p>` : ""}
     </article>
+  `;
+}
+
+function playlistLink([label, url]) {
+  return `
+    <a class="playlist-link playlist-${playlistSlug(label)}" href="${escapeAttr(url)}" target="_blank" rel="noreferrer">
+      ${playlistIcon(label)}
+      <span>${escapeHtml(label)}</span>
+    </a>
+  `;
+}
+
+function playlistSlug(label) {
+  return label.toLowerCase().replaceAll(" ", "-");
+}
+
+function playlistIcon(label) {
+  if (label === "Spotify") {
+    return `
+      <span class="playlist-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M7.2 9.4c3.1-1 6.8-.7 9.7.9" />
+          <path d="M8 12.3c2.5-.7 5.2-.5 7.5.7" />
+          <path d="M8.7 15c1.8-.5 3.9-.3 5.6.6" />
+        </svg>
+      </span>
+    `;
+  }
+  if (label === "YouTube") {
+    return `
+      <span class="playlist-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <rect x="3" y="6.5" width="18" height="11" rx="3" />
+          <path d="M10.3 9.2v5.6l5-2.8z" />
+        </svg>
+      </span>
+    `;
+  }
+  return `
+    <span class="playlist-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path d="M16.5 4.8v10.1a3.1 3.1 0 1 1-1.8-2.8V6.4L8.8 7.7v8.8A3.1 3.1 0 1 1 7 13.7V6.4z" />
+      </svg>
+    </span>
   `;
 }
 
