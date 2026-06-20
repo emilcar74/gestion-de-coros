@@ -15,6 +15,8 @@ const sessionCookieName = "ars_session_v2";
 const legacySessionCookieNames = ["ars_session"];
 const demoEmail = "fecorem@fecorem.es";
 const demoStores = new Map();
+const authMagicLinkTtlMs = 15 * 60 * 1000;
+const eventNoticeMagicLinkTtlMs = 7 * 24 * 60 * 60 * 1000;
 
 loadEnv(path.join(__dirname, ".env"));
 
@@ -152,7 +154,7 @@ async function routeApi(req, res, url) {
     db.magicLinks.push({
       email: normalizedEmail,
       tokenHash: hash(token),
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + authMagicLinkTtlMs).toISOString(),
       createdAt: new Date().toISOString()
     });
     await writeDb(db);
@@ -370,7 +372,7 @@ async function routeApi(req, res, url) {
     if (!isAdmin(session.email)) return sendJson(res, 403, { error: "Sólo admin" });
     const body = await readJson(req);
     const db = await readSessionDb(session);
-    db.events.push({
+    const eventRecord = {
       id: slugId(`${body.date || "evento"}-${body.title || "evento"}`),
       programId: body.programId || activeProgram(db)?.id,
       title: cleanText(body.title, 120) || "Evento",
@@ -380,9 +382,26 @@ async function routeApi(req, res, url) {
       location: cleanText(body.location, 160),
       notes: cleanText(body.notes, 500),
       createdAt: new Date().toISOString()
-    });
+    };
+    db.events.push(eventRecord);
+
+    let notice = null;
+    if (body.notifyChoir === "on" || body.notifyChoir === true) {
+      notice = await prepareEventNotice(db, eventRecord, session);
+    }
+
     await writeSessionDb(session, db);
-    sendJson(res, 200, adminData(db));
+
+    if (notice?.recipients?.length) {
+      notice = await sendEventNotice(eventRecord, notice);
+      await auditLog(req, "event_notice_sent", {
+        eventId: eventRecord.id,
+        sent: notice.sent,
+        failed: notice.failed
+      });
+    }
+
+    sendJson(res, 200, { ...adminData(db), notice });
     return;
   }
 
@@ -531,6 +550,104 @@ async function verifyGhostAccess(email) {
   return { allowed: true, name: member.name || "" };
 }
 
+async function prepareEventNotice(db, eventRecord, session) {
+  if (isDemoSession(session)) {
+    return { sent: 0, failed: 0, skipped: true, message: "La demo no envía avisos reales." };
+  }
+
+  if (!isEmailConfigured()) {
+    return { sent: 0, failed: 0, error: "No hay proveedor de email configurado." };
+  }
+
+  let members;
+  try {
+    members = await ghostChoirMembers();
+  } catch (error) {
+    console.error(`No se pudo preparar el aviso del evento: ${error.message}`);
+    return { sent: 0, failed: 0, error: "No se pudo obtener el listado del coro desde Ghost." };
+  }
+
+  const recipients = members
+    .map((member) => ({ ...member, email: normalizeEmail(member.email) }))
+    .filter((member) => member.email && !isAdmin(member.email));
+
+  recipients.forEach((member) => {
+    const token = randomId();
+    member.magicUrl = `${config.baseUrl}/api/auth/consume?token=${token}`;
+    db.magicLinks.push({
+      email: member.email,
+      tokenHash: hash(token),
+      purpose: "event_notice",
+      eventId: eventRecord.id,
+      expiresAt: new Date(Date.now() + eventNoticeMagicLinkTtlMs).toISOString(),
+      createdAt: new Date().toISOString()
+    });
+  });
+
+  return { sent: 0, failed: 0, recipients };
+}
+
+async function ghostChoirMembers() {
+  if (!config.ghostUrl || !config.ghostAdminKey) {
+    if (config.devAuth) return [];
+    throw new Error("Ghost no está configurado");
+  }
+
+  const jwt = createGhostAdminJwt(config.ghostAdminKey);
+  const members = [];
+  let page = 1;
+  let pages = 1;
+
+  do {
+    const url = `${config.ghostUrl}/ghost/api/admin/members/?include=labels&limit=100&page=${page}`;
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Ghost ${jwt}`,
+        Accept: "application/json"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ghost respondió ${response.status}: ${await response.text()}`);
+    }
+
+    const payload = await response.json();
+    members.push(...(payload.members || []));
+    pages = payload.meta?.pagination?.pages || page;
+    page += 1;
+  } while (page <= pages);
+
+  const expected = config.accessLabel.toLowerCase();
+  const seen = new Set();
+  return members
+    .filter((member) =>
+      (member.labels || []).some((label) =>
+        [label.name, label.slug].filter(Boolean).map((value) => value.toLowerCase()).includes(expected)
+      )
+    )
+    .map((member) => ({ email: member.email || "", name: member.name || "" }))
+    .filter((member) => {
+      const email = normalizeEmail(member.email);
+      if (!email || seen.has(email)) return false;
+      seen.add(email);
+      member.email = email;
+      return true;
+    });
+}
+
+async function sendEventNotice(eventRecord, notice) {
+  let sent = 0;
+  let failed = 0;
+
+  for (const recipient of notice.recipients) {
+    const ok = await sendEventNoticeEmail(recipient.email, eventRecord, recipient.magicUrl);
+    if (ok) sent += 1;
+    else failed += 1;
+  }
+
+  return { sent, failed };
+}
+
 async function sendMagicLinkEmail(email, magicUrl) {
   return sendMagicLinkWithResend(email, magicUrl);
 }
@@ -552,10 +669,46 @@ function magicLinkEmail(email, magicUrl) {
   };
 }
 
+function eventNoticeEmail(email, eventRecord, magicUrl) {
+  const title = eventRecord.title || "Nuevo evento";
+  const when = [formatEventDate(eventRecord.date), eventRecord.time].filter(Boolean).join(" · ");
+  const where = eventRecord.location || "Lugar pendiente";
+  const notes = eventRecord.notes ? `<p><strong>Notas:</strong> ${escapeHtml(eventRecord.notes)}</p>` : "";
+  return {
+    from: config.mailFrom,
+    to: email,
+    subject: `Nuevo evento en ${config.appName}: ${title}`,
+    html: `
+      <div style="font-family: Georgia, serif; color: #25211e; line-height: 1.5">
+        <h1 style="font-size: 24px">${escapeHtml(config.appName)}</h1>
+        <p>Se ha añadido un nuevo evento al calendario del coro.</p>
+        <p>
+          <strong>${escapeHtml(title)}</strong><br />
+          ${escapeHtml(when)}<br />
+          ${escapeHtml(where)}
+        </p>
+        ${notes}
+        <p>Entra en la zona privada para confirmar si asistirás, llegarás tarde o no podrás asistir.</p>
+        <p><a href="${escapeHtml(magicUrl)}" style="color: #7f1d2d">Entrar y responder</a></p>
+        <p style="color: #716b65">Este enlace caduca en 7 días.</p>
+      </div>
+    `,
+    text: `Nuevo evento en ${config.appName}\n\n${title}\n${when}\n${where}\n\nEntra en la zona privada para confirmar asistencia: ${magicUrl}\n\nEste enlace caduca en 7 días.`
+  };
+}
+
+async function sendEventNoticeEmail(email, eventRecord, magicUrl) {
+  return sendEmailWithResend(eventNoticeEmail(email, eventRecord, magicUrl));
+}
+
 async function sendMagicLinkWithResend(email, magicUrl) {
   if (!config.resendApiKey || !config.mailFrom) return false;
 
-  const message = magicLinkEmail(email, magicUrl);
+  return sendEmailWithResend(magicLinkEmail(email, magicUrl));
+}
+
+async function sendEmailWithResend(message) {
+  if (!config.resendApiKey || !config.mailFrom) return false;
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     let response;
@@ -583,6 +736,16 @@ async function sendMagicLinkWithResend(email, magicUrl) {
   }
 
   return false;
+}
+
+function formatEventDate(date) {
+  if (!date) return "";
+  return new Intl.DateTimeFormat("es", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(`${date}T12:00:00`));
 }
 
 function isEmailConfigured() {

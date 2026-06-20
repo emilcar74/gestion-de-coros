@@ -9,7 +9,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260620-1"
+  buildVersion: "20260620-3"
 };
 
 const statusLabels = {
@@ -437,6 +437,10 @@ function adminView() {
               <label class="field"><span>Lugar</span><input name="location" /></label>
             </div>
             <label class="field"><span>Notas</span><textarea name="notes"></textarea></label>
+            <label class="check-field">
+              <input name="notifyChoir" type="checkbox" />
+              <span>Avisar al coro por email</span>
+            </label>
             <button class="button" type="submit">Añadir evento</button>
           </form>
           <hr />
@@ -660,6 +664,7 @@ function bindView() {
       await refresh();
       state.screen = "profile";
       renderApp();
+      showToast("Datos guardados.");
     });
   });
 
@@ -667,10 +672,10 @@ function bindView() {
     event.preventDefault();
     const form = event.currentTarget;
     await runAction(async () => {
-      await api("/api/admin/events", { method: "POST", body: formBody(form) });
+      const result = await api("/api/admin/events", { method: "POST", body: formBody(form) });
       form.reset();
       await refreshAdmin();
-      showToast("Evento añadido.");
+      showToast(eventNoticeMessage(result.notice));
     });
   });
 
@@ -783,6 +788,14 @@ async function refreshAdmin() {
   state.admin = await api("/api/admin");
   state.screen = "admin";
   renderApp();
+}
+
+function eventNoticeMessage(notice) {
+  if (!notice) return "Evento añadido.";
+  if (notice.skipped) return `Evento añadido. ${notice.message || "No se enviaron avisos."}`;
+  if (notice.error) return `Evento añadido, pero no se pudo avisar al coro: ${notice.error}`;
+  if (notice.failed) return `Evento añadido. Avisos enviados: ${notice.sent}. Fallidos: ${notice.failed}.`;
+  return `Evento añadido. Avisos enviados: ${notice.sent}.`;
 }
 
 async function logout() {
