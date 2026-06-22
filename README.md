@@ -136,11 +136,17 @@ Recommended production structure:
   Bouzignac - Ave Maria - Bajo.mp3
 ```
 
-In the admin repertoire form, set:
+In the admin repertoire form, directors can choose between two material modes:
+
+- `Google Drive, Dropbox or external link`: paste a shared folder URL. Singers see a button in the repertoire page. The individual rehearsal tab is hidden.
+- `Private server`: set a server folder name and list the works for individual rehearsal. Singers see the `Individual Rehearsal` tab with audio players and embedded PDFs.
+
+For private server mode, set:
 
 ```text
+Material mode: Private server
 Material folder: navidad-2026
-Practice works:
+Individual rehearsal works:
 Bouzignac - Ave Maria
 ```
 

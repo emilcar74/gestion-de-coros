@@ -246,6 +246,11 @@ a {
   font-weight: 700;
 }
 
+.field small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .field input,
 .field select,
 .field textarea {

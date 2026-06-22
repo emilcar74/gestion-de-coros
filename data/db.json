@@ -6,6 +6,7 @@
       "description": "Example rehearsal and concert cycle.",
       "works": "",
       "rehearsalInstructions": "",
+      "materialMode": "external",
       "materialFolder": "",
       "practiceWorks": "",
       "scoreFolderUrl": "https://example.com/scores",

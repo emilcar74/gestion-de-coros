@@ -312,9 +312,10 @@ async function routeApi(req, res, url) {
       description: cleanText(body.description, 500),
       works: cleanText(body.works, 5000),
       rehearsalInstructions: cleanText(body.rehearsalInstructions, 5000),
-      materialFolder: cleanMaterialFolder(body.materialFolder) || slugId(body.name || "programa"),
+      materialMode: materialModeFromBody(body),
+      materialFolder: cleanMaterialFolder(body.materialFolder),
       practiceWorks: cleanText(body.practiceWorks, 5000),
-      scoreFolderUrl: defaultScoreFolderUrl(),
+      scoreFolderUrl: cleanText(body.scoreFolderUrl, 700),
       playlists: cleanPlaylists(body.playlists || body),
       active: Boolean(body.active ?? true),
       createdAt: new Date().toISOString()
@@ -336,9 +337,10 @@ async function routeApi(req, res, url) {
     program.description = cleanText(body.description, 500);
     program.works = cleanText(body.works, 5000);
     program.rehearsalInstructions = cleanText(body.rehearsalInstructions, 5000);
+    program.materialMode = materialModeFromBody(body);
     program.materialFolder = cleanMaterialFolder(body.materialFolder);
     program.practiceWorks = cleanText(body.practiceWorks, 5000);
-    program.scoreFolderUrl = cleanText(body.scoreFolderUrl, 700) || defaultScoreFolderUrl();
+    program.scoreFolderUrl = cleanText(body.scoreFolderUrl, 700);
     program.playlists = cleanPlaylists(body);
     program.updatedAt = new Date().toISOString();
 
@@ -361,9 +363,10 @@ async function routeApi(req, res, url) {
         description: cleanText(body.description, 500),
         works: "",
         rehearsalInstructions: "",
+        materialMode: materialModeFromBody(body),
         materialFolder: cleanMaterialFolder(body.materialFolder),
         practiceWorks: cleanText(body.practiceWorks, 5000),
-        scoreFolderUrl: defaultScoreFolderUrl(),
+        scoreFolderUrl: cleanText(body.scoreFolderUrl, 700),
         playlists: cleanPlaylists({}),
         active: true,
         createdAt: new Date().toISOString()
@@ -819,9 +822,10 @@ function adminData(db) {
 
 async function materialData(db) {
   const program = activeProgram(db);
+  const mode = materialMode(program);
   const folder = cleanMaterialFolder(program?.materialFolder || "");
-  const practiceWorks = practiceWorkEntries(program);
-  const files = folder ? await listMaterialFiles(folder) : [];
+  const practiceWorks = mode === "server" ? practiceWorkEntries(program) : [];
+  const files = mode === "server" && folder ? await listMaterialFiles(folder) : [];
   const byMatchName = new Map(files.map((file) => [materialMatchKey(file.name), file]));
   const works = practiceWorks.map((work) => {
     const pdfKey = materialMatchKey(`${work.fileBase}.pdf`);
@@ -839,6 +843,7 @@ async function materialData(db) {
   });
 
   return {
+    mode,
     folder,
     files,
     works
@@ -1129,6 +1134,7 @@ function buildDemoDb() {
           "Tenores y bajos: llevar preparado el ostinato de Lux serena a tempo lento.",
           "Escuchar la lista de YouTube al menos una vez siguiendo la partitura."
         ].join("\n"),
+        materialMode: "server",
         materialFolder: "demo-cantares-invierno",
         practiceWorks: [
           "Aurora de los caminos | M. Ledesma - Aurora de los caminos",
@@ -1337,6 +1343,20 @@ function cleanPlaylists(value) {
 function cleanMaterialFolder(value) {
   const folder = cleanText(value, 80).trim();
   return /^[A-Za-z0-9._-]+$/.test(folder) ? folder : "";
+}
+
+function cleanMaterialMode(value) {
+  return value === "server" ? "server" : "external";
+}
+
+function materialModeFromBody(body) {
+  if (body.materialMode) return cleanMaterialMode(body.materialMode);
+  return body.materialFolder ? "server" : "external";
+}
+
+function materialMode(program) {
+  if (program?.materialMode) return cleanMaterialMode(program.materialMode);
+  return program?.materialFolder ? "server" : "external";
 }
 
 function materialFolderPath(folder) {

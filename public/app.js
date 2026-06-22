@@ -11,7 +11,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260622-2"
+  buildVersion: "20260622-3"
 };
 
 const statusLabels = {
@@ -105,7 +105,7 @@ function renderApp() {
       <nav class="tabs">
         ${tab("calendar", "Calendario")}
         ${tab("resources", "Repertorio")}
-        ${tab("practice", "Ensayo particular")}
+        ${hasPracticeMode() ? tab("practice", "Ensayo individual") : ""}
         ${tab("profile", "Mis datos")}
         ${data.user.role === "admin" ? tab("admin", "Administración") : ""}
         ${data.user.role === "admin" ? tab("choir", "Coro") : ""}
@@ -126,6 +126,7 @@ function renderApp() {
 
 function renderView() {
   const view = document.querySelector("#view");
+  if (state.screen === "practice" && !hasPracticeMode()) state.screen = "resources";
   if (state.screen === "resources") view.innerHTML = resourcesView();
   else if (state.screen === "practice") view.innerHTML = practiceView();
   else if (state.screen === "profile") view.innerHTML = profileView();
@@ -254,6 +255,7 @@ function eventCard(event) {
 function resourcesView() {
   const program = state.data.program || {};
   const materials = state.materials || {};
+  const mode = programMaterialMode(program);
   const playlists = program.playlists || {};
   const playlistLinks = [
     ["Apple Music", playlists.appleMusic],
@@ -275,8 +277,8 @@ function resourcesView() {
             ${program.works ? `<div class="markdown works-list">${renderMarkdown(program.works)}</div>` : empty("Todavía no hay obras escritas.")}
           </article>
           <article class="resource">
-            ${resourceHeading("Materiales", materials.folder ? `Carpeta protegida: ${materials.folder}` : "Carpeta protegida")}
-            ${materialFolderView(materials, program)}
+            ${resourceHeading("Materiales", mode === "server" ? "Carpeta protegida" : "Enlace externo")}
+            ${materialResourcesView(materials, program)}
           </article>
           <article class="resource">
             ${resourceHeading("Instrucciones de ensayo", "Indicaciones para preparar el repertorio")}
@@ -302,8 +304,7 @@ function resourcesView() {
                   <label class="field"><span>Nombre del programa</span><input name="name" value="${escapeAttr(program.name || "")}" /></label>
                   <label class="field"><span>Descripción</span><textarea name="description">${escapeHtml(program.description || "")}</textarea></label>
                   <label class="field"><span>Listado de obras</span><textarea class="tall" name="works">${escapeHtml(program.works || "")}</textarea></label>
-                  <label class="field"><span>Carpeta de materiales</span><input name="materialFolder" placeholder="navidad-2026" value="${escapeAttr(program.materialFolder || "")}" /></label>
-                  <label class="field"><span>Obras para ensayo particular</span><textarea class="tall" name="practiceWorks" placeholder="O magnum mysterium | Victoria - O magnum mysterium">${escapeHtml(program.practiceWorks || "")}</textarea></label>
+                  ${materialAdminFields(program)}
                   <label class="field"><span>Instrucciones de ensayo</span><textarea class="tall" name="rehearsalInstructions">${escapeHtml(program.rehearsalInstructions || "")}</textarea></label>
                   <label class="field"><span>Apple Music</span><input name="appleMusic" value="${escapeAttr(playlists.appleMusic || "")}" /></label>
                   <label class="field"><span>Spotify</span><input name="spotify" value="${escapeAttr(playlists.spotify || "")}" /></label>
@@ -326,6 +327,38 @@ function resourceCard(resource) {
       ${resource.notes ? `<p class="muted">${escapeHtml(resource.notes)}</p>` : ""}
     </article>
   `;
+}
+
+function materialAdminFields(program = {}) {
+  const mode = programMaterialMode(program);
+  return `
+    <label class="field">
+      <span>Materiales</span>
+      <select name="materialMode" data-material-mode>
+        <option value="external" ${mode === "external" ? "selected" : ""}>Google Drive, Dropbox u otro enlace</option>
+        <option value="server" ${mode === "server" ? "selected" : ""}>Servidor privado</option>
+      </select>
+    </label>
+    <div data-material-fields="external" ${mode === "external" ? "" : "hidden"}>
+      <label class="field"><span>Enlace a la carpeta</span><input name="scoreFolderUrl" placeholder="https://drive.google.com/..." value="${escapeAttr(program.scoreFolderUrl || "")}" /></label>
+    </div>
+    <div data-material-fields="server" ${mode === "server" ? "" : "hidden"}>
+      <label class="field">
+        <span>Carpeta en el servidor</span>
+        <small>/opt/ars-mvsica-privado/media/rehearsal/</small>
+        <input name="materialFolder" placeholder="navidad-2026" value="${escapeAttr(program.materialFolder || "")}" />
+      </label>
+      <label class="field"><span>Obras para ensayo individual</span><textarea class="tall" name="practiceWorks" placeholder="O magnum mysterium | Victoria - O magnum mysterium">${escapeHtml(program.practiceWorks || "")}</textarea></label>
+    </div>
+  `;
+}
+
+function materialResourcesView(materials, program) {
+  if (programMaterialMode(program) !== "server") {
+    if (!program.scoreFolderUrl) return empty("Todavía no hay enlace de materiales configurado.");
+    return `<a class="button secondary" href="${escapeAttr(program.scoreFolderUrl)}" target="_blank" rel="noreferrer">Abrir carpeta de materiales</a>`;
+  }
+  return materialFolderView(materials, program);
 }
 
 function materialFolderView(materials, program) {
@@ -374,7 +407,7 @@ function practiceView() {
       <section class="panel">
         <div class="panel-head">
           <div>
-            <h2>Ensayo particular</h2>
+            <h2>Ensayo individual</h2>
             <p>Escucha tu cuerda y sigue la partitura del programa activo.</p>
           </div>
         </div>
@@ -390,7 +423,7 @@ function practiceView() {
           </div>
         </div>
         <div class="panel-body">
-          ${selected ? practiceWorkDetail(selected) : empty("Todavía no hay obras configuradas para ensayo particular.")}
+          ${selected ? practiceWorkDetail(selected) : empty("Todavía no hay obras configuradas para ensayo individual.")}
         </div>
       </section>
     </div>
@@ -598,8 +631,7 @@ function adminView() {
             <p class="muted">Borra eventos, asistencias y repertorio del programa actual. Conserva cantantes, cuerdas y sesiones.</p>
             <label class="field"><span>Nombre del siguiente programa</span><input name="name" placeholder="Nuevo programa" required /></label>
             <label class="field"><span>Descripción</span><textarea name="description"></textarea></label>
-            <label class="field"><span>Carpeta de materiales</span><input name="materialFolder" placeholder="navidad-2026" /></label>
-            <label class="field"><span>Obras para ensayo particular</span><textarea name="practiceWorks" placeholder="O magnum mysterium | Victoria - O magnum mysterium"></textarea></label>
+            ${materialAdminFields({ materialMode: "external" })}
             <button class="button danger" type="submit">Borrar programa actual y empezar otro</button>
           </form>
         </div>
@@ -835,6 +867,11 @@ function bindView() {
     });
   });
 
+  document.querySelectorAll("[data-material-mode]").forEach((select) => {
+    select.addEventListener("change", () => syncMaterialFields(select.form));
+    syncMaterialFields(select.form);
+  });
+
   document.querySelector("#logoForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -992,6 +1029,14 @@ function showToast(message, type = "success") {
 
 function formBody(form) {
   return Object.fromEntries(new FormData(form).entries());
+}
+
+function syncMaterialFields(form) {
+  if (!form) return;
+  const mode = form.elements.materialMode?.value || "external";
+  form.querySelectorAll("[data-material-fields]").forEach((group) => {
+    group.hidden = group.dataset.materialFields !== mode;
+  });
 }
 
 function fileToDataUrl(file) {
@@ -1153,6 +1198,15 @@ function normalizedVoice(voice) {
 
 function normalizedScoreFormat(format) {
   return ["Papel", "Digital"].includes(format) ? format : "";
+}
+
+function programMaterialMode(program = state.data?.program || {}) {
+  if (program.materialMode) return program.materialMode === "server" ? "server" : "external";
+  return program.materialFolder ? "server" : "external";
+}
+
+function hasPracticeMode() {
+  return programMaterialMode() === "server";
 }
 
 function dayNumber(date) {
