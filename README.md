@@ -45,7 +45,8 @@ See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) before adapting authenticat
 - Admins see all absences and late arrivals, grouped by voice part.
 - Editable repertoire:
   - work list;
-  - score folder;
+  - protected material folder;
+  - private rehearsal view with voice-specific MP3 players and embedded PDFs;
   - Apple Music, Spotify, and YouTube playlist links.
 - Manual program reset for the next concert cycle.
 
@@ -112,9 +113,38 @@ DEV_AUTH=false
 
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 MAIL_FROM="Choir Private Area <access@example.com>"
+
+MEDIA_DIR=/opt/ars-mvsica-privado/media
 ```
 
 Resend is used for magic-link delivery because it is simple to configure and has a generous free tier for small choirs.
+
+## Protected Materials
+
+Program PDFs and MP3 rehearsal files can live outside `public/` and be served only to logged-in users.
+
+Recommended production structure:
+
+```text
+/opt/ars-mvsica-privado/media/rehearsal/navidad-2026/
+  Bouzignac - Ave Maria.pdf
+  Bouzignac - Ave Maria - Soprano.mp3
+  Bouzignac - Ave Maria - Soprano I.mp3
+  Bouzignac - Ave Maria - Soprano II.mp3
+  Bouzignac - Ave Maria - Alto.mp3
+  Bouzignac - Ave Maria - Tenor.mp3
+  Bouzignac - Ave Maria - Bajo.mp3
+```
+
+In the admin repertoire form, set:
+
+```text
+Material folder: navidad-2026
+Practice works:
+Bouzignac - Ave Maria
+```
+
+The app detects existing files by exact filename convention. A singer whose profile voice is `Soprano` will see every matching `Soprano`, `Soprano I`, `Soprano II`, etc. audio file for that work.
 
 ## Data Storage
 

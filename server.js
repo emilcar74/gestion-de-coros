@@ -11,6 +11,7 @@ const dbPath = path.join(dataDir, "db.json");
 const auditLogPath = path.join(dataDir, "audit.log");
 const seedDbPath = path.join(__dirname, "data", "db.json");
 const publicDir = path.join(__dirname, "public");
+const mediaDir = process.env.MEDIA_DIR || path.join(__dirname, "media");
 const sessionCookieName = "ars_session_v2";
 const legacySessionCookieNames = ["ars_session"];
 const demoEmail = "fecorem@fecorem.es";
@@ -44,6 +45,8 @@ const mimeTypes = {
   ".json": "application/json; charset=utf-8",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".mp3": "audio/mpeg",
+  ".pdf": "application/pdf",
   ".png": "image/png",
   ".svg": "image/svg+xml"
 };
@@ -77,6 +80,11 @@ async function route(req, res) {
     await serveLogo(res);
     return;
   }
+
+    if ((req.method === "GET" || req.method === "HEAD") && url.pathname.startsWith("/media/rehearsal/")) {
+      await serveProtectedMedia(req, res, url);
+      return;
+    }
 
   if (url.pathname.startsWith("/api/")) {
     await routeApi(req, res, url);
@@ -237,6 +245,12 @@ async function routeApi(req, res, url) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/materials") {
+    const db = await readSessionDb(session);
+    sendJson(res, 200, await materialData(db));
+    return;
+  }
+
   if (req.method === "PUT" && url.pathname === "/api/me/profile") {
     const body = await readJson(req);
     const db = await readSessionDb(session);
@@ -298,6 +312,8 @@ async function routeApi(req, res, url) {
       description: cleanText(body.description, 500),
       works: cleanText(body.works, 5000),
       rehearsalInstructions: cleanText(body.rehearsalInstructions, 5000),
+      materialFolder: cleanMaterialFolder(body.materialFolder) || slugId(body.name || "programa"),
+      practiceWorks: cleanText(body.practiceWorks, 5000),
       scoreFolderUrl: defaultScoreFolderUrl(),
       playlists: cleanPlaylists(body.playlists || body),
       active: Boolean(body.active ?? true),
@@ -320,6 +336,8 @@ async function routeApi(req, res, url) {
     program.description = cleanText(body.description, 500);
     program.works = cleanText(body.works, 5000);
     program.rehearsalInstructions = cleanText(body.rehearsalInstructions, 5000);
+    program.materialFolder = cleanMaterialFolder(body.materialFolder);
+    program.practiceWorks = cleanText(body.practiceWorks, 5000);
     program.scoreFolderUrl = cleanText(body.scoreFolderUrl, 700) || defaultScoreFolderUrl();
     program.playlists = cleanPlaylists(body);
     program.updatedAt = new Date().toISOString();
@@ -343,6 +361,8 @@ async function routeApi(req, res, url) {
         description: cleanText(body.description, 500),
         works: "",
         rehearsalInstructions: "",
+        materialFolder: cleanMaterialFolder(body.materialFolder),
+        practiceWorks: cleanText(body.practiceWorks, 5000),
         scoreFolderUrl: defaultScoreFolderUrl(),
         playlists: cleanPlaylists({}),
         active: true,
@@ -797,6 +817,66 @@ function adminData(db) {
   };
 }
 
+async function materialData(db) {
+  const program = activeProgram(db);
+  const folder = cleanMaterialFolder(program?.materialFolder || "");
+  const practiceTitles = practiceWorkTitles(program);
+  const files = folder ? await listMaterialFiles(folder) : [];
+  const byName = new Map(files.map((file) => [file.name, file]));
+  const works = practiceTitles.map((title) => {
+    const pdfName = `${title}.pdf`;
+    const prefix = `${title} - `;
+    return {
+      title,
+      pdf: byName.get(pdfName) || null,
+      audios: files
+        .filter((file) => file.type === "audio" && file.name.startsWith(prefix))
+        .map((file) => ({ ...file, voice: file.name.slice(prefix.length, -4) }))
+        .sort((a, b) => a.voice.localeCompare(b.voice))
+    };
+  });
+
+  return {
+    folder,
+    files,
+    works
+  };
+}
+
+function practiceWorkTitles(program) {
+  return String(program?.practiceWorks || "")
+    .split("\n")
+    .map((line) => cleanText(line, 180))
+    .filter(Boolean);
+}
+
+async function listMaterialFiles(folder) {
+  const folderPath = materialFolderPath(folder);
+  let entries = [];
+  try {
+    entries = await fs.readdir(folderPath, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  return entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => materialFile(folder, entry.name))
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function materialFile(folder, name) {
+  if (!isSafeMaterialFilename(name)) return null;
+  const ext = path.extname(name).toLowerCase();
+  if (![".pdf", ".mp3"].includes(ext)) return null;
+  return {
+    name,
+    type: ext === ".pdf" ? "pdf" : "audio",
+    url: `/media/rehearsal/${encodeURIComponent(folder)}/${encodeURIComponent(name)}`
+  };
+}
+
 function upsertProfile(db, email, name = "") {
   let profile = db.profiles.find((item) => item.email === email);
   if (!profile) {
@@ -839,6 +919,61 @@ async function requireSession(req, res) {
     return null;
   }
   return session;
+}
+
+async function serveProtectedMedia(req, res, url) {
+  const session = await getSession(req);
+  if (!session) return redirect(res, "/");
+
+  const parts = url.pathname.split("/").filter(Boolean);
+  const folder = cleanMaterialFolder(decodeURIComponent(parts[2] || ""));
+  const filename = decodeURIComponent(parts.slice(3).join("/") || "");
+  if (!folder || !isSafeMaterialFilename(filename)) {
+    return send(res, 404, "No encontrado", { "Cache-Control": "no-store" });
+  }
+
+  const filePath = path.normalize(path.join(materialFolderPath(folder), filename));
+  if (!filePath.startsWith(materialFolderPath(folder))) {
+    return send(res, 403, "Prohibido", { "Cache-Control": "no-store" });
+  }
+
+  let stat;
+  try {
+    stat = await fs.stat(filePath);
+  } catch {
+    return send(res, 404, "No encontrado", { "Cache-Control": "no-store" });
+  }
+  if (!stat.isFile()) return send(res, 404, "No encontrado", { "Cache-Control": "no-store" });
+
+  const contentType = mimeTypes[path.extname(filePath).toLowerCase()] || "application/octet-stream";
+  const range = req.headers.range;
+  if (range) {
+    const match = range.match(/bytes=(\d*)-(\d*)/);
+    const start = match?.[1] ? Number(match[1]) : 0;
+    const end = match?.[2] ? Number(match[2]) : stat.size - 1;
+    if (start >= stat.size || end >= stat.size || start > end) {
+      res.writeHead(416, { "Content-Range": `bytes */${stat.size}`, "Cache-Control": "no-store" });
+      return res.end();
+    }
+    res.writeHead(206, {
+      "Content-Type": contentType,
+      "Content-Length": end - start + 1,
+      "Content-Range": `bytes ${start}-${end}/${stat.size}`,
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "no-store"
+    });
+    if (req.method === "HEAD") return res.end();
+    return fsSync.createReadStream(filePath, { start, end }).pipe(res);
+  }
+
+  res.writeHead(200, {
+    "Content-Type": contentType,
+    "Content-Length": stat.size,
+    "Accept-Ranges": "bytes",
+    "Cache-Control": "no-store"
+  });
+  if (req.method === "HEAD") return res.end();
+  fsSync.createReadStream(filePath).pipe(res);
 }
 
 async function serveStatic(res, pathname) {
@@ -972,6 +1107,12 @@ function buildDemoDb() {
           "Sopranos y altos: revisar compases 32-48 de Tres nanas del agua.",
           "Tenores y bajos: llevar preparado el ostinato de Lux serena a tempo lento.",
           "Escuchar la lista de YouTube al menos una vez siguiendo la partitura."
+        ].join("\n"),
+        materialFolder: "demo-cantares-invierno",
+        practiceWorks: [
+          "Aurora de los caminos - M. Ledesma",
+          "Tres nanas del agua - A. Fictoria",
+          "Lux serena - E. Navarro"
         ].join("\n"),
         scoreFolderUrl: "https://example.com/demo/partituras",
         playlists: {
@@ -1170,6 +1311,19 @@ function cleanPlaylists(value) {
     spotify: cleanText(value.spotify, 700),
     youtube: cleanText(value.youtube, 700)
   };
+}
+
+function cleanMaterialFolder(value) {
+  const folder = cleanText(value, 80).trim();
+  return /^[A-Za-z0-9._-]+$/.test(folder) ? folder : "";
+}
+
+function materialFolderPath(folder) {
+  return path.normalize(path.join(mediaDir, "rehearsal", folder));
+}
+
+function isSafeMaterialFilename(name) {
+  return Boolean(name && !name.includes("/") && !name.includes("\\") && !name.includes(".."));
 }
 
 function publicSettings(db) {

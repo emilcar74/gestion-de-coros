@@ -1,7 +1,7 @@
 node_modules/
 .env
 data/*.local.json
+media/
 .DS_Store
 outputs/
 work/
-deploy/siteground/config.php

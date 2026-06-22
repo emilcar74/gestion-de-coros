@@ -5,6 +5,9 @@
       "name": "Sample Program",
       "description": "Example rehearsal and concert cycle.",
       "works": "",
+      "rehearsalInstructions": "",
+      "materialFolder": "",
+      "practiceWorks": "",
       "scoreFolderUrl": "https://example.com/scores",
       "playlists": {
         "appleMusic": "",

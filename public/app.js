@@ -2,14 +2,16 @@ const state = {
   screen: "calendar",
   visibleMonth: "",
   selectedDate: "",
+  selectedPracticeWork: "",
   data: null,
-  admin: null
+  admin: null,
+  materials: null
 };
 
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260620-3"
+  buildVersion: "20260622-1"
 };
 
 const statusLabels = {
@@ -26,6 +28,7 @@ async function boot() {
   try {
     await api("/api/me");
     state.data = await api("/api/data");
+    state.materials = await api("/api/materials");
     if (state.data.user.role === "admin") state.admin = await api("/api/admin");
     initCalendarState();
     renderApp();
@@ -102,6 +105,7 @@ function renderApp() {
       <nav class="tabs">
         ${tab("calendar", "Calendario")}
         ${tab("resources", "Repertorio")}
+        ${tab("practice", "Ensayo particular")}
         ${tab("profile", "Mis datos")}
         ${data.user.role === "admin" ? tab("admin", "Administración") : ""}
         ${data.user.role === "admin" ? tab("choir", "Coro") : ""}
@@ -123,6 +127,7 @@ function renderApp() {
 function renderView() {
   const view = document.querySelector("#view");
   if (state.screen === "resources") view.innerHTML = resourcesView();
+  else if (state.screen === "practice") view.innerHTML = practiceView();
   else if (state.screen === "profile") view.innerHTML = profileView();
   else if (state.screen === "admin") view.innerHTML = adminView();
   else if (state.screen === "choir") view.innerHTML = choirView();
@@ -248,6 +253,7 @@ function eventCard(event) {
 
 function resourcesView() {
   const program = state.data.program || {};
+  const materials = state.materials || {};
   const playlists = program.playlists || {};
   const playlistLinks = [
     ["Apple Music", playlists.appleMusic],
@@ -269,8 +275,8 @@ function resourcesView() {
             ${program.works ? `<div class="markdown works-list">${renderMarkdown(program.works)}</div>` : empty("Todavía no hay obras escritas.")}
           </article>
           <article class="resource">
-            ${resourceHeading("Partituras", "Carpeta compartida")}
-            <h3><a href="${escapeAttr(program.scoreFolderUrl || "")}" target="_blank" rel="noreferrer">Carpeta de partituras</a></h3>
+            ${resourceHeading("Materiales", materials.folder ? `Carpeta protegida: ${materials.folder}` : "Carpeta protegida")}
+            ${materialFolderView(materials, program)}
           </article>
           <article class="resource">
             ${resourceHeading("Instrucciones de ensayo", "Indicaciones para preparar el repertorio")}
@@ -296,7 +302,8 @@ function resourcesView() {
                   <label class="field"><span>Nombre del programa</span><input name="name" value="${escapeAttr(program.name || "")}" /></label>
                   <label class="field"><span>Descripción</span><textarea name="description">${escapeHtml(program.description || "")}</textarea></label>
                   <label class="field"><span>Listado de obras</span><textarea class="tall" name="works">${escapeHtml(program.works || "")}</textarea></label>
-                  <label class="field"><span>Carpeta de partituras</span><input name="scoreFolderUrl" value="${escapeAttr(program.scoreFolderUrl || "")}" /></label>
+                  <label class="field"><span>Carpeta de materiales</span><input name="materialFolder" placeholder="navidad-2026" value="${escapeAttr(program.materialFolder || "")}" /></label>
+                  <label class="field"><span>Obras para ensayo particular</span><textarea class="tall" name="practiceWorks" placeholder="Una obra por línea">${escapeHtml(program.practiceWorks || "")}</textarea></label>
                   <label class="field"><span>Instrucciones de ensayo</span><textarea class="tall" name="rehearsalInstructions">${escapeHtml(program.rehearsalInstructions || "")}</textarea></label>
                   <label class="field"><span>Apple Music</span><input name="appleMusic" value="${escapeAttr(playlists.appleMusic || "")}" /></label>
                   <label class="field"><span>Spotify</span><input name="spotify" value="${escapeAttr(playlists.spotify || "")}" /></label>
@@ -319,6 +326,142 @@ function resourceCard(resource) {
       ${resource.notes ? `<p class="muted">${escapeHtml(resource.notes)}</p>` : ""}
     </article>
   `;
+}
+
+function materialFolderView(materials, program) {
+  if (!program.materialFolder) return empty("Todavía no hay carpeta de materiales configurada.");
+  const files = materials.files || [];
+  if (!files.length) return empty("La carpeta no tiene archivos PDF o MP3 disponibles.");
+  const pdfs = files.filter((file) => file.type === "pdf");
+  const audios = files.filter((file) => file.type === "audio");
+  return `
+    <div class="material-browser">
+      ${materialFileGroup("PDF", pdfs)}
+      ${materialFileGroup("Audios", audios)}
+    </div>
+  `;
+}
+
+function materialFileGroup(title, files) {
+  if (!files.length) return "";
+  return `
+    <div class="material-file-group">
+      <h4>${escapeHtml(title)}</h4>
+      <div class="material-files">
+        ${files.map(materialFileLink).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function materialFileLink(file) {
+  return `
+    <a class="material-file-link" href="${escapeAttr(file.url)}" target="_blank" rel="noreferrer">
+      <span>${file.type === "pdf" ? "PDF" : "MP3"}</span>
+      ${escapeHtml(file.name)}
+    </a>
+  `;
+}
+
+function practiceView() {
+  const materials = state.materials || {};
+  const works = materials.works || [];
+  const selected = works.find((work) => work.title === state.selectedPracticeWork) || works[0] || null;
+  if (selected && state.selectedPracticeWork !== selected.title) state.selectedPracticeWork = selected.title;
+
+  return `
+    <div class="practice-layout">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Ensayo particular</h2>
+            <p>Escucha tu cuerda y sigue la partitura del programa activo.</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          ${practiceWorkList(works)}
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>${selected ? escapeHtml(selected.title) : "Obra"}</h2>
+            <p>${practiceSubtitle()}</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          ${selected ? practiceWorkDetail(selected) : empty("Todavía no hay obras configuradas para ensayo particular.")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function practiceWorkList(works) {
+  if (!works.length) return empty("Todavía no hay obras configuradas.");
+  return `
+    <div class="practice-work-list">
+      ${works
+        .map(
+          (work) => `
+            <button class="${work.title === state.selectedPracticeWork ? "active" : ""}" type="button" data-practice-work="${escapeAttr(work.title)}">
+              <span>${escapeHtml(work.title)}</span>
+              <small>${practiceAvailability(work)}</small>
+            </button>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function practiceWorkDetail(work) {
+  const voice = normalizedVoice(state.data.profile?.voice);
+  const audios = voice ? work.audios.filter((audio) => audio.voice === voice || audio.voice.startsWith(`${voice} `)) : [];
+  return `
+    <div class="practice-detail">
+      ${
+        voice
+          ? ""
+          : '<p class="flash inline-flash">Indica tu cuerda en Mis datos para cargar el audio correspondiente.</p>'
+      }
+      <div class="practice-audios">
+        ${
+          audios.length
+            ? audios.map(practiceAudio).join("")
+            : empty(voice ? `No hay audio disponible para ${voice}.` : "No hay audio de cuerda seleccionado.")
+        }
+      </div>
+      <div class="practice-score">
+        ${
+          work.pdf
+            ? `<div class="practice-score-actions"><a class="button secondary" href="${escapeAttr(work.pdf.url)}" target="_blank" rel="noreferrer">Abrir PDF</a></div><iframe src="${escapeAttr(work.pdf.url)}" title="${escapeAttr(work.title)}"></iframe>`
+            : empty("No hay PDF disponible para esta obra.")
+        }
+      </div>
+    </div>
+  `;
+}
+
+function practiceAudio(audio) {
+  return `
+    <div class="practice-audio">
+      <strong>${escapeHtml(audio.voice)}</strong>
+      <audio controls src="${escapeAttr(audio.url)}"></audio>
+    </div>
+  `;
+}
+
+function practiceAvailability(work) {
+  const parts = [];
+  if (work.pdf) parts.push("PDF");
+  if (work.audios.length) parts.push(`${work.audios.length} audio${work.audios.length === 1 ? "" : "s"}`);
+  return parts.join(" · ") || "Sin archivos";
+}
+
+function practiceSubtitle() {
+  const voice = normalizedVoice(state.data.profile?.voice);
+  return voice ? `Audio para ${voice}` : "Configura tu cuerda en Mis datos";
 }
 
 function playlistLink([label, url]) {
@@ -455,6 +598,8 @@ function adminView() {
             <p class="muted">Borra eventos, asistencias y repertorio del programa actual. Conserva cantantes, cuerdas y sesiones.</p>
             <label class="field"><span>Nombre del siguiente programa</span><input name="name" placeholder="Nuevo programa" required /></label>
             <label class="field"><span>Descripción</span><textarea name="description"></textarea></label>
+            <label class="field"><span>Carpeta de materiales</span><input name="materialFolder" placeholder="navidad-2026" /></label>
+            <label class="field"><span>Obras para ensayo particular</span><textarea name="practiceWorks" placeholder="Una obra por línea"></textarea></label>
             <button class="button danger" type="submit">Borrar programa actual y empezar otro</button>
           </form>
         </div>
@@ -762,6 +907,13 @@ function bindView() {
       });
     });
   });
+
+  document.querySelectorAll("[data-practice-work]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedPracticeWork = button.dataset.practiceWork;
+      renderView();
+    });
+  });
 }
 
 async function saveAttendance(block, status) {
@@ -779,12 +931,14 @@ async function saveAttendance(block, status) {
 
 async function refresh() {
   state.data = await api("/api/data");
+  state.materials = await api("/api/materials");
   if (state.data.user.role === "admin") state.admin = await api("/api/admin");
   initCalendarState();
 }
 
 async function refreshAdmin() {
   state.data = await api("/api/data");
+  state.materials = await api("/api/materials");
   state.admin = await api("/api/admin");
   state.screen = "admin";
   renderApp();
