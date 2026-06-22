@@ -158,6 +158,8 @@ Victoria - O magnum mysterium - Soprano.mp3
 Victoria - O magnum mysterium - Alto.mp3
 ```
 
+File matching ignores case and diacritics, so `Cancion` in the admin form can still match `Canción.pdf`.
+
 The app detects existing files by exact filename convention. A singer whose profile voice is `Soprano` will see every matching `Soprano`, `Soprano I`, `Soprano II`, etc. audio file for that work.
 
 ## Data Storage

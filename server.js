@@ -822,17 +822,18 @@ async function materialData(db) {
   const folder = cleanMaterialFolder(program?.materialFolder || "");
   const practiceWorks = practiceWorkEntries(program);
   const files = folder ? await listMaterialFiles(folder) : [];
-  const byName = new Map(files.map((file) => [file.name, file]));
+  const byMatchName = new Map(files.map((file) => [materialMatchKey(file.name), file]));
   const works = practiceWorks.map((work) => {
-    const pdfName = `${work.fileBase}.pdf`;
-    const prefix = `${work.fileBase} - `;
+    const pdfKey = materialMatchKey(`${work.fileBase}.pdf`);
+    const prefixKey = materialMatchKey(`${work.fileBase} - `);
     return {
       title: work.title,
       fileBase: work.fileBase,
-      pdf: byName.get(pdfName) || null,
+      pdf: byMatchName.get(pdfKey) || null,
       audios: files
-        .filter((file) => file.type === "audio" && file.name.startsWith(prefix))
-        .map((file) => ({ ...file, voice: file.name.slice(prefix.length, -4) }))
+        .filter((file) => file.type === "audio" && materialMatchKey(file.name).startsWith(prefixKey))
+        .map((file) => ({ ...file, voice: audioVoiceFromName(file.name, work.fileBase) }))
+        .filter((file) => file.voice)
         .sort((a, b) => a.voice.localeCompare(b.voice))
     };
   });
@@ -855,6 +856,19 @@ function practiceWorkEntries(program) {
       return title && fileBase ? { title, fileBase } : null;
     })
     .filter(Boolean);
+}
+
+function audioVoiceFromName(filename, fileBase) {
+  const withoutExtension = filename.replace(/\.mp3$/i, "");
+  const exactPrefix = `${fileBase} - `;
+  if (withoutExtension.startsWith(exactPrefix)) return withoutExtension.slice(exactPrefix.length).trim();
+
+  const normalizedPrefix = materialMatchKey(exactPrefix);
+  const normalizedName = materialMatchKey(withoutExtension);
+  if (!normalizedName.startsWith(normalizedPrefix)) return "";
+
+  const suffixLength = normalizedName.length - normalizedPrefix.length;
+  return withoutExtension.slice(-suffixLength).trim();
 }
 
 async function listMaterialFiles(folder) {
@@ -1409,6 +1423,13 @@ function slugId(value) {
     .replace(/^-|-$/g, "")
     .slice(0, 50);
   return `${base || "item"}-${randomId(4)}`;
+}
+
+function materialMatchKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 function hash(value) {
