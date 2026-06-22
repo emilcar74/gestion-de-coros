@@ -1123,6 +1123,7 @@ function buildDemoDb() {
         description: "Programa ficticio para mostrar la gestion de repertorio, calendario y avisos de asistencia.",
         works: [
           "O magnum mysterium - Tomas Luis de Victoria",
+          "A un niño llorando al hielo - Francisco Guerrero",
           "Aurora de los caminos - M. Ledesma",
           "Tres nanas del agua - A. Fictoria",
           "Canticum breve - L. Moreno",
@@ -1138,6 +1139,7 @@ function buildDemoDb() {
         materialFolder: "demo-o-magnum-mysterium",
         practiceWorks: [
           "O magnum mysterium | Victoria - O magnum mysterium",
+          "A un niño llorando al hielo | Guerrero - A un niño llorando al hielo",
           "Aurora de los caminos | M. Ledesma - Aurora de los caminos",
           "Tres nanas del agua | A. Fictoria - Tres nanas del agua",
           "Canticum breve | L. Moreno - Canticum breve",
