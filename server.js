@@ -820,14 +820,15 @@ function adminData(db) {
 async function materialData(db) {
   const program = activeProgram(db);
   const folder = cleanMaterialFolder(program?.materialFolder || "");
-  const practiceTitles = practiceWorkTitles(program);
+  const practiceWorks = practiceWorkEntries(program);
   const files = folder ? await listMaterialFiles(folder) : [];
   const byName = new Map(files.map((file) => [file.name, file]));
-  const works = practiceTitles.map((title) => {
-    const pdfName = `${title}.pdf`;
-    const prefix = `${title} - `;
+  const works = practiceWorks.map((work) => {
+    const pdfName = `${work.fileBase}.pdf`;
+    const prefix = `${work.fileBase} - `;
     return {
-      title,
+      title: work.title,
+      fileBase: work.fileBase,
       pdf: byName.get(pdfName) || null,
       audios: files
         .filter((file) => file.type === "audio" && file.name.startsWith(prefix))
@@ -843,10 +844,16 @@ async function materialData(db) {
   };
 }
 
-function practiceWorkTitles(program) {
+function practiceWorkEntries(program) {
   return String(program?.practiceWorks || "")
     .split("\n")
     .map((line) => cleanText(line, 180))
+    .map((line) => {
+      const [titlePart, fileBasePart] = line.split("|").map((part) => cleanText(part, 180).trim());
+      const title = titlePart || fileBasePart || "";
+      const fileBase = fileBasePart || title;
+      return title && fileBase ? { title, fileBase } : null;
+    })
     .filter(Boolean);
 }
 
@@ -1110,9 +1117,9 @@ function buildDemoDb() {
         ].join("\n"),
         materialFolder: "demo-cantares-invierno",
         practiceWorks: [
-          "Aurora de los caminos - M. Ledesma",
-          "Tres nanas del agua - A. Fictoria",
-          "Lux serena - E. Navarro"
+          "Aurora de los caminos | M. Ledesma - Aurora de los caminos",
+          "Tres nanas del agua | A. Fictoria - Tres nanas del agua",
+          "Lux serena | E. Navarro - Lux serena"
         ].join("\n"),
         scoreFolderUrl: "https://example.com/demo/partituras",
         playlists: {

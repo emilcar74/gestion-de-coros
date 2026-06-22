@@ -144,6 +144,20 @@ Practice works:
 Bouzignac - Ave Maria
 ```
 
+If the title singers should see is different from the file base name, use:
+
+```text
+O magnum mysterium | Victoria - O magnum mysterium
+```
+
+The left side is displayed in the app. The right side is used to find:
+
+```text
+Victoria - O magnum mysterium.pdf
+Victoria - O magnum mysterium - Soprano.mp3
+Victoria - O magnum mysterium - Alto.mp3
+```
+
 The app detects existing files by exact filename convention. A singer whose profile voice is `Soprano` will see every matching `Soprano`, `Soprano I`, `Soprano II`, etc. audio file for that work.
 
 ## Data Storage

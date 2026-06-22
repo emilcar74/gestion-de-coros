@@ -11,7 +11,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260622-1"
+  buildVersion: "20260622-2"
 };
 
 const statusLabels = {
@@ -303,7 +303,7 @@ function resourcesView() {
                   <label class="field"><span>Descripción</span><textarea name="description">${escapeHtml(program.description || "")}</textarea></label>
                   <label class="field"><span>Listado de obras</span><textarea class="tall" name="works">${escapeHtml(program.works || "")}</textarea></label>
                   <label class="field"><span>Carpeta de materiales</span><input name="materialFolder" placeholder="navidad-2026" value="${escapeAttr(program.materialFolder || "")}" /></label>
-                  <label class="field"><span>Obras para ensayo particular</span><textarea class="tall" name="practiceWorks" placeholder="Una obra por línea">${escapeHtml(program.practiceWorks || "")}</textarea></label>
+                  <label class="field"><span>Obras para ensayo particular</span><textarea class="tall" name="practiceWorks" placeholder="O magnum mysterium | Victoria - O magnum mysterium">${escapeHtml(program.practiceWorks || "")}</textarea></label>
                   <label class="field"><span>Instrucciones de ensayo</span><textarea class="tall" name="rehearsalInstructions">${escapeHtml(program.rehearsalInstructions || "")}</textarea></label>
                   <label class="field"><span>Apple Music</span><input name="appleMusic" value="${escapeAttr(playlists.appleMusic || "")}" /></label>
                   <label class="field"><span>Spotify</span><input name="spotify" value="${escapeAttr(playlists.spotify || "")}" /></label>
@@ -599,7 +599,7 @@ function adminView() {
             <label class="field"><span>Nombre del siguiente programa</span><input name="name" placeholder="Nuevo programa" required /></label>
             <label class="field"><span>Descripción</span><textarea name="description"></textarea></label>
             <label class="field"><span>Carpeta de materiales</span><input name="materialFolder" placeholder="navidad-2026" /></label>
-            <label class="field"><span>Obras para ensayo particular</span><textarea name="practiceWorks" placeholder="Una obra por línea"></textarea></label>
+            <label class="field"><span>Obras para ensayo particular</span><textarea name="practiceWorks" placeholder="O magnum mysterium | Victoria - O magnum mysterium"></textarea></label>
             <button class="button danger" type="submit">Borrar programa actual y empezar otro</button>
           </form>
         </div>
