@@ -1137,7 +1137,11 @@ function buildDemoDb() {
         materialMode: "server",
         materialFolder: "demo-o-magnum-mysterium",
         practiceWorks: [
-          "O magnum mysterium | Victoria - O magnum mysterium"
+          "O magnum mysterium | Victoria - O magnum mysterium",
+          "Aurora de los caminos | M. Ledesma - Aurora de los caminos",
+          "Tres nanas del agua | A. Fictoria - Tres nanas del agua",
+          "Canticum breve | L. Moreno - Canticum breve",
+          "Romance del aire claro | Popular arr. S. Vidal - Romance del aire claro"
         ].join("\n"),
         scoreFolderUrl: "https://example.com/demo/partituras",
         playlists: {

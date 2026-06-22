@@ -11,7 +11,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260622-4"
+  buildVersion: "20260622-5"
 };
 
 const statusLabels = {
@@ -408,7 +408,7 @@ function practiceView() {
         <div class="panel-head">
           <div>
             <h2>Ensayo individual</h2>
-            <p>Escucha tu cuerda y sigue la partitura del programa activo.</p>
+            <p>Escucha tu cuerda y sigue la partitura de la obra seleccionada.</p>
           </div>
         </div>
         <div class="panel-body">
