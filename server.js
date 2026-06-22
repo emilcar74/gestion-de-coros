@@ -1122,24 +1122,22 @@ function buildDemoDb() {
         name: "Demo: Cantares de invierno",
         description: "Programa ficticio para mostrar la gestion de repertorio, calendario y avisos de asistencia.",
         works: [
+          "O magnum mysterium - Tomas Luis de Victoria",
           "Aurora de los caminos - M. Ledesma",
           "Tres nanas del agua - A. Fictoria",
           "Canticum breve - L. Moreno",
-          "Romance del aire claro - Popular, arr. S. Vidal",
-          "Lux serena - E. Navarro"
+          "Romance del aire claro - Popular, arr. S. Vidal"
         ].join("\n"),
         rehearsalInstructions: [
-          "Antes del proximo ensayo: repasar texto de Aurora de los caminos y marcar respiraciones.",
-          "Sopranos y altos: revisar compases 32-48 de Tres nanas del agua.",
-          "Tenores y bajos: llevar preparado el ostinato de Lux serena a tempo lento.",
+          "Antes del proximo ensayo: trabajar O magnum mysterium con especial atencion al empaste de las entradas.",
+          "Sopranos y altos: revisar afinacion en las cadencias largas.",
+          "Tenores y bajos: preparar el texto lentamente antes de cantar a tempo.",
           "Escuchar la lista de YouTube al menos una vez siguiendo la partitura."
         ].join("\n"),
         materialMode: "server",
-        materialFolder: "demo-cantares-invierno",
+        materialFolder: "demo-o-magnum-mysterium",
         practiceWorks: [
-          "Aurora de los caminos | M. Ledesma - Aurora de los caminos",
-          "Tres nanas del agua | A. Fictoria - Tres nanas del agua",
-          "Lux serena | E. Navarro - Lux serena"
+          "O magnum mysterium | Victoria - O magnum mysterium"
         ].join("\n"),
         scoreFolderUrl: "https://example.com/demo/partituras",
         playlists: {

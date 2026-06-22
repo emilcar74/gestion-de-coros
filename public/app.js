@@ -11,7 +11,7 @@ const state = {
 const appConfig = {
   choirName: "Ars Mvsica",
   loginSubtitle: "Zona privada para cantantes. Entra con tu email registrado.",
-  buildVersion: "20260622-3"
+  buildVersion: "20260622-4"
 };
 
 const statusLabels = {
@@ -335,7 +335,7 @@ function materialAdminFields(program = {}) {
     <label class="field">
       <span>Materiales</span>
       <select name="materialMode" data-material-mode>
-        <option value="external" ${mode === "external" ? "selected" : ""}>Google Drive, Dropbox u otro enlace</option>
+        <option value="external" ${mode === "external" ? "selected" : ""}>Carpeta de Google Drive</option>
         <option value="server" ${mode === "server" ? "selected" : ""}>Servidor privado</option>
       </select>
     </label>

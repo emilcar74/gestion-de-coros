@@ -138,7 +138,7 @@ Recommended production structure:
 
 In the admin repertoire form, directors can choose between two material modes:
 
-- `Google Drive, Dropbox or external link`: paste a shared folder URL. Singers see a button in the repertoire page. The individual rehearsal tab is hidden.
+- `Google Drive folder`: paste a shared folder URL. Singers see a button in the repertoire page. The individual rehearsal tab is hidden.
 - `Private server`: set a server folder name and list the works for individual rehearsal. Singers see the `Individual Rehearsal` tab with audio players and embedded PDFs.
 
 For private server mode, set:
@@ -167,6 +167,16 @@ Victoria - O magnum mysterium - Alto.mp3
 File matching ignores case and diacritics, so `Cancion` in the admin form can still match `Canción.pdf`.
 
 The app detects existing files by exact filename convention. A singer whose profile voice is `Soprano` will see every matching `Soprano`, `Soprano I`, `Soprano II`, etc. audio file for that work.
+
+The built-in demo uses the private server folder `demo-o-magnum-mysterium`. To fully populate it, upload:
+
+```text
+Victoria - O magnum mysterium.pdf
+Victoria - O magnum mysterium - Soprano.mp3
+Victoria - O magnum mysterium - Alto.mp3
+Victoria - O magnum mysterium - Tenor.mp3
+Victoria - O magnum mysterium - Bajo.mp3
+```
 
 ## Data Storage
 
